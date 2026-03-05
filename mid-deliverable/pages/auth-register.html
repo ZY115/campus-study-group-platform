@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Register — StudyGroup WSU</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link href="../assets/css/styles.css" rel="stylesheet">
+</head>
+<body>
+
+<!-- S-03: REGISTER PAGE -->
+<div id="navbar-placeholder"></div>
+
+<main class="py-5">
+  <div class="container">
+    <div class="row justify-content-center">
+      <div class="col-md-6">
+
+        <div class="text-center mb-4">
+          <div class="display-5 mb-2">&#127891;</div>
+          <h2 class="fw-bold">Create Your Account</h2>
+          <p class="text-muted">Join StudyGroup WSU and connect with classmates</p>
+        </div>
+
+        <div class="alert alert-info border-0 small mb-4">
+          <strong>Demo Mode:</strong> Registration is simulated. After submitting, you will be redirected to the login page.
+          Use the demo login buttons there to explore the platform.
+        </div>
+
+        <div class="card border-0 shadow-sm">
+          <div class="card-body p-4">
+            <form id="register-form" novalidate>
+              <div class="row g-3">
+                <div class="col-md-6">
+                  <label for="firstName" class="form-label fw-semibold">First Name</label>
+                  <input type="text" class="form-control" id="firstName" placeholder="e.g. Alex" required minlength="2">
+                  <div class="invalid-feedback">Please enter your first name (min 2 chars).</div>
+                </div>
+                <div class="col-md-6">
+                  <label for="lastName" class="form-label fw-semibold">Last Name</label>
+                  <input type="text" class="form-control" id="lastName" placeholder="e.g. Johnson" required minlength="2">
+                  <div class="invalid-feedback">Please enter your last name.</div>
+                </div>
+              </div>
+
+              <div class="mb-3 mt-3">
+                <label for="regEmail" class="form-label fw-semibold">WSU Email Address</label>
+                <input type="email" class="form-control" id="regEmail" placeholder="yourname@wsu.edu" required pattern=".*@wsu\.edu$">
+                <div class="invalid-feedback">Must be a valid WSU email (e.g. name@wsu.edu).</div>
+              </div>
+
+              <div class="mb-3">
+                <label for="major" class="form-label fw-semibold">Major / Program</label>
+                <input type="text" class="form-control" id="major" placeholder="e.g. Computer Science" required>
+                <div class="invalid-feedback">Please enter your major.</div>
+              </div>
+
+              <div class="mb-3">
+                <label for="roleSelect" class="form-label fw-semibold">Account Type</label>
+                <select class="form-select" id="roleSelect" required>
+                  <option value="" disabled selected>Select your role</option>
+                  <option value="Participant">Participant — Join study groups as a member</option>
+                  <option value="Organizer">Organizer — Create and manage study groups</option>
+                </select>
+                <div class="invalid-feedback">Please select an account type.</div>
+                <div class="form-text small">Admin accounts are created by the platform team.</div>
+              </div>
+
+              <div class="mb-3">
+                <label for="regPassword" class="form-label fw-semibold">Password</label>
+                <input type="password" class="form-control" id="regPassword" placeholder="At least 8 characters" required minlength="8">
+                <div class="invalid-feedback">Password must be at least 8 characters.</div>
+                <div class="progress mt-2" style="height:5px;" id="pwd-strength-bar">
+                  <div class="progress-bar bg-danger" id="pwd-bar" style="width:0%;"></div>
+                </div>
+                <div class="form-text small" id="pwd-hint">Use a mix of letters, numbers, and symbols.</div>
+              </div>
+
+              <div class="mb-3">
+                <label for="confirmPassword" class="form-label fw-semibold">Confirm Password</label>
+                <input type="password" class="form-control" id="confirmPassword" placeholder="Repeat your password" required>
+                <div class="invalid-feedback" id="confirm-feedback">Passwords do not match.</div>
+              </div>
+
+              <div class="mb-3 form-check">
+                <input type="checkbox" class="form-check-input" id="agreeTerms" required>
+                <label class="form-check-label small" for="agreeTerms">
+                  I agree to the <a href="#" class="text-wsu">Terms of Service</a> and
+                  <a href="#" class="text-wsu">Community Guidelines</a>.
+                </label>
+                <div class="invalid-feedback">You must agree to the terms to register.</div>
+              </div>
+
+              <div class="d-grid">
+                <button type="submit" class="btn btn-wsu btn-lg">Create Account</button>
+              </div>
+            </form>
+          </div>
+        </div>
+
+        <p class="text-center mt-4 small">
+          Already have an account?
+          <a href="auth-login.html" class="fw-semibold text-wsu text-decoration-none">Sign in</a>
+        </p>
+      </div>
+    </div>
+  </div>
+</main>
+
+<footer class="site-footer mt-0">
+  <div class="container text-center">
+    <p class="small mb-0 text-muted">&copy; 2026 StudyGroup WSU &bull; CPTS 489 Course Project Prototype</p>
+  </div>
+</footer>
+
+<div id="toast-container"></div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+<script src="../assets/js/data.js"></script>
+<script src="../assets/js/app.js"></script>
+<script src="../assets/js/ui.js"></script>
+<script>
+  initApp();
+
+  // Password strength indicator
+  document.getElementById('regPassword').addEventListener('input', function() {
+    const val = this.value;
+    const bar = document.getElementById('pwd-bar');
+    const hint = document.getElementById('pwd-hint');
+    let strength = 0;
+    if (val.length >= 8) strength++;
+    if (/[A-Z]/.test(val)) strength++;
+    if (/[0-9]/.test(val)) strength++;
+    if (/[^A-Za-z0-9]/.test(val)) strength++;
+
+    const map = [
+      { pct: '25%', cls: 'bg-danger',  msg: 'Weak' },
+      { pct: '50%', cls: 'bg-warning', msg: 'Fair' },
+      { pct: '75%', cls: 'bg-info',    msg: 'Good' },
+      { pct: '100%',cls: 'bg-success', msg: 'Strong' },
+    ];
+    if (val.length === 0) { bar.style.width = '0%'; hint.textContent = 'Use a mix of letters, numbers, and symbols.'; return; }
+    const s = map[Math.min(strength - 1, 3)];
+    bar.style.width = s.pct;
+    bar.className = `progress-bar ${s.cls}`;
+    hint.textContent = `Password strength: ${s.msg}`;
+  });
+
+  document.getElementById('register-form').addEventListener('submit', function(e) {
+    e.preventDefault();
+    this.classList.add('was-validated');
+
+    // Custom confirm-password check
+    const pwd     = document.getElementById('regPassword').value;
+    const confirm = document.getElementById('confirmPassword');
+    if (confirm.value !== pwd) {
+      confirm.setCustomValidity('mismatch');
+      document.getElementById('confirm-feedback').textContent = 'Passwords do not match.';
+    } else {
+      confirm.setCustomValidity('');
+    }
+
+    if (!this.checkValidity()) return;
+
+    showToast('Account created! Redirecting to login...', 'success');
+    setTimeout(() => window.location.href = 'auth-login.html', 1200);
+  });
+
+  // Clear custom validity on confirm typing
+  document.getElementById('confirmPassword').addEventListener('input', function() {
+    this.setCustomValidity('');
+  });
+</script>
+</body>
+</html>

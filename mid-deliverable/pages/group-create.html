@@ -1,0 +1,241 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Create Study Group — StudyGroup WSU</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link href="../assets/css/styles.css" rel="stylesheet">
+</head>
+<body>
+
+<!-- S-07: CREATE GROUP PAGE (Organizer / Admin only) -->
+<div id="navbar-placeholder"></div>
+
+<main class="py-4">
+  <div class="container">
+    <nav aria-label="breadcrumb" class="mb-3">
+      <ol class="breadcrumb small">
+        <li class="breadcrumb-item"><a href="dashboard-organizer.html">My Dashboard</a></li>
+        <li class="breadcrumb-item active">Create Group</li>
+      </ol>
+    </nav>
+
+    <div class="row justify-content-center">
+      <div class="col-lg-8">
+        <div class="d-flex align-items-center gap-3 mb-4">
+          <div class="display-5">&#128101;</div>
+          <div>
+            <h2 class="fw-bold mb-0">Create a Study Group</h2>
+            <p class="text-muted mb-0">Set up a new group for your course — define the schedule, format, and visibility.</p>
+          </div>
+        </div>
+
+        <div class="card border-0 shadow-sm">
+          <div class="card-body p-4">
+            <form id="create-form" novalidate>
+
+              <!-- Basic Info -->
+              <h5 class="fw-bold mb-3 section-header">Basic Information</h5>
+              <div class="mb-3">
+                <label for="group-name" class="form-label fw-semibold">Group Name <span class="text-danger">*</span></label>
+                <input type="text" class="form-control" id="group-name" placeholder="e.g. CPTS 360 Tuesday Study Circle" required maxlength="80">
+                <div class="invalid-feedback">Please enter a group name (max 80 characters).</div>
+                <div class="form-text"><span id="name-count">0</span>/80 characters</div>
+              </div>
+
+              <div class="mb-3">
+                <label for="course-code" class="form-label fw-semibold">Course Code <span class="text-danger">*</span></label>
+                <input type="text" class="form-control" id="course-code" placeholder="e.g. CPTS 489" required pattern="[A-Za-z]{2,6}\s?\d{3,4}" maxlength="12">
+                <div class="invalid-feedback">Enter a valid course code (e.g. CPTS 489, MATH 315).</div>
+              </div>
+
+              <div class="mb-3">
+                <label for="description" class="form-label fw-semibold">Description <span class="text-danger">*</span></label>
+                <textarea class="form-control" id="description" rows="4" required minlength="20" maxlength="500"
+                  placeholder="Describe the purpose of your group, what topics you'll cover, what members should bring, etc."></textarea>
+                <div class="invalid-feedback">Please provide a description (20–500 characters).</div>
+                <div class="form-text"><span id="desc-count">0</span>/500 characters</div>
+              </div>
+
+              <div class="mb-3">
+                <label for="tags-input" class="form-label fw-semibold">Tags <span class="text-muted small">(optional)</span></label>
+                <input type="text" class="form-control" id="tags-input" placeholder="e.g. React, Node.js, Web Dev (comma-separated)">
+                <div class="form-text">Help others discover your group with relevant keywords.</div>
+              </div>
+
+              <hr class="my-4">
+
+              <!-- Schedule & Format -->
+              <h5 class="fw-bold mb-3 section-header">Schedule &amp; Format</h5>
+              <div class="row g-3 mb-3">
+                <div class="col-md-6">
+                  <label for="schedule" class="form-label fw-semibold">Meeting Schedule <span class="text-danger">*</span></label>
+                  <input type="text" class="form-control" id="schedule" placeholder="e.g. Tuesdays 5:00 PM – 7:00 PM" required>
+                  <div class="invalid-feedback">Please specify a meeting schedule.</div>
+                </div>
+                <div class="col-md-6">
+                  <label for="max-size" class="form-label fw-semibold">Max Group Size <span class="text-danger">*</span></label>
+                  <input type="number" class="form-control" id="max-size" value="10" min="2" max="50" required>
+                  <div class="invalid-feedback">Enter a size between 2 and 50.</div>
+                </div>
+              </div>
+
+              <div class="mb-3">
+                <label class="form-label fw-semibold">Format <span class="text-danger">*</span></label>
+                <div class="d-flex gap-3">
+                  <div class="form-check">
+                    <input class="form-check-input" type="radio" name="format" id="fmt-person" value="in-person" checked>
+                    <label class="form-check-label" for="fmt-person">&#128205; In-Person</label>
+                  </div>
+                  <div class="form-check">
+                    <input class="form-check-input" type="radio" name="format" id="fmt-virtual" value="virtual">
+                    <label class="form-check-label" for="fmt-virtual">&#128187; Virtual</label>
+                  </div>
+                </div>
+              </div>
+
+              <div id="location-field" class="mb-3">
+                <label for="location" class="form-label fw-semibold">Location <span class="text-danger">*</span></label>
+                <input type="text" class="form-control" id="location" placeholder="e.g. Holland Library Room 204">
+                <div class="invalid-feedback">Please enter a meeting location for in-person groups.</div>
+              </div>
+
+              <div id="link-field" class="mb-3 d-none">
+                <label for="meeting-link" class="form-label fw-semibold">Virtual Meeting Link</label>
+                <input type="url" class="form-control" id="meeting-link" placeholder="https://zoom.us/j/... or Teams link">
+                <div class="form-text">You can add or update this later.</div>
+              </div>
+
+              <hr class="my-4">
+
+              <!-- Visibility -->
+              <h5 class="fw-bold mb-3 section-header">Visibility &amp; Access</h5>
+              <div class="mb-3">
+                <label class="form-label fw-semibold">Group Visibility <span class="text-danger">*</span></label>
+                <div class="d-flex gap-3">
+                  <div class="form-check">
+                    <input class="form-check-input" type="radio" name="visibility" id="vis-public" value="public" checked>
+                    <label class="form-check-label" for="vis-public">
+                      &#127758; <strong>Public</strong> — Anyone can join instantly
+                    </label>
+                  </div>
+                  <div class="form-check">
+                    <input class="form-check-input" type="radio" name="visibility" id="vis-private" value="private">
+                    <label class="form-check-label" for="vis-private">
+                      &#128274; <strong>Private</strong> — Requires organizer approval
+                    </label>
+                  </div>
+                </div>
+              </div>
+
+              <div id="visibility-note" class="alert alert-light border small py-2 mb-3">
+                <strong>Public:</strong> Your group will be visible to all WSU students and anyone can join without approval.
+              </div>
+
+              <div class="d-flex gap-3 mt-4">
+                <button type="submit" class="btn btn-wsu px-5">Create Group</button>
+                <a href="dashboard-organizer.html" class="btn btn-outline-secondary">Cancel</a>
+              </div>
+            </form>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</main>
+
+<footer class="site-footer">
+  <div class="container text-center">
+    <p class="small mb-0 text-muted">&copy; 2026 StudyGroup WSU &bull; CPTS 489 Prototype</p>
+  </div>
+</footer>
+
+<div id="toast-container"></div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+<script src="../assets/js/data.js"></script>
+<script src="../assets/js/app.js"></script>
+<script src="../assets/js/ui.js"></script>
+<script>
+  initApp();
+  guardPage(['Organizer', 'Admin']);
+
+  // Character counters
+  document.getElementById('group-name').addEventListener('input', function() {
+    document.getElementById('name-count').textContent = this.value.length;
+  });
+  document.getElementById('description').addEventListener('input', function() {
+    document.getElementById('desc-count').textContent = this.value.length;
+  });
+
+  // Format toggle
+  document.querySelectorAll('input[name="format"]').forEach(r => {
+    r.addEventListener('change', function() {
+      const isVirtual = this.value === 'virtual';
+      document.getElementById('location-field').classList.toggle('d-none', isVirtual);
+      document.getElementById('link-field').classList.toggle('d-none', !isVirtual);
+      document.getElementById('location').required = !isVirtual;
+    });
+  });
+
+  // Visibility note
+  document.querySelectorAll('input[name="visibility"]').forEach(r => {
+    r.addEventListener('change', function() {
+      const note = document.getElementById('visibility-note');
+      if (this.value === 'private') {
+        note.innerHTML = '<strong>Private:</strong> Only visible to logged-in users. Members must submit a join request that you review and approve.';
+      } else {
+        note.innerHTML = '<strong>Public:</strong> Your group will be visible to all WSU students and anyone can join without approval.';
+      }
+    });
+  });
+
+  document.getElementById('create-form').addEventListener('submit', function(e) {
+    e.preventDefault();
+    this.classList.add('was-validated');
+
+    const format = document.querySelector('input[name="format"]:checked').value;
+    const loc    = document.getElementById('location');
+    if (format === 'in-person') { loc.required = true; }
+    else                        { loc.required = false; }
+
+    if (!this.checkValidity()) return;
+
+    // Build new group object
+    const state     = getState();
+    const user      = getCurrentUser();
+    const newId     = 'g' + Date.now();
+    const tags      = document.getElementById('tags-input').value
+      .split(',').map(t => t.trim()).filter(Boolean);
+
+    const newGroup = {
+      id:           newId,
+      name:         document.getElementById('group-name').value.trim(),
+      course:       document.getElementById('course-code').value.trim().toUpperCase(),
+      description:  document.getElementById('description').value.trim(),
+      visibility:   document.querySelector('input[name="visibility"]:checked').value,
+      format,
+      location:     format === 'in-person' ? document.getElementById('location').value.trim() : '',
+      meetingLink:  format === 'virtual'   ? document.getElementById('meeting-link').value.trim() : '',
+      schedule:     document.getElementById('schedule').value.trim(),
+      organizerId:  getCurrentUserId(),
+      organizerName:user.name,
+      members:      [getCurrentUserId()],
+      maxSize:      parseInt(document.getElementById('max-size').value, 10),
+      tags,
+      status:       'active',
+      createdAt:    new Date().toISOString().split('T')[0],
+      reports:      0,
+    };
+
+    state.groups.push(newGroup);
+    if (!state.comments[newId]) state.comments[newId] = [];
+    saveState(state);
+
+    showToast(`Group &ldquo;${newGroup.name}&rdquo; created successfully! &#127881;`, 'success');
+    setTimeout(() => window.location.href = `group-detail.html?id=${newId}`, 1100);
+  });
+</script>
+</body>
+</html>

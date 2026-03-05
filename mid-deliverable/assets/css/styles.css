@@ -1,0 +1,304 @@
+/* ================================================================
+   CAMPUS STUDY GROUP PLATFORM — WSU
+   Shared Stylesheet (Bootstrap 5 overrides + custom components)
+   ================================================================ */
+
+/* ---------- Design Tokens ---------- */
+:root {
+  --wsu-crimson:       #981e32;
+  --wsu-crimson-dark:  #7a1827;
+  --wsu-crimson-light: #c0392b;
+  --wsu-gray:          #5a5a5a;
+  --wsu-light-bg:      #f8f5f0;
+  --shadow-sm:         0 2px 8px rgba(0,0,0,.08);
+  --shadow-md:         0 4px 16px rgba(0,0,0,.12);
+  --radius-card:       10px;
+}
+
+/* ---------- Base ---------- */
+body {
+  font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+  background-color: #f4f4f4;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+main { flex: 1; }
+
+/* ---------- Navbar ---------- */
+.navbar-wsu {
+  background-color: var(--wsu-crimson) !important;
+}
+
+.navbar-wsu .navbar-brand,
+.navbar-wsu .nav-link {
+  color: rgba(255,255,255,.95) !important;
+}
+
+.navbar-wsu .nav-link:hover,
+.navbar-wsu .nav-link.active {
+  color: #fff !important;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.navbar-wsu .navbar-toggler {
+  border-color: rgba(255,255,255,.4);
+}
+
+.navbar-wsu .navbar-toggler-icon {
+  background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 30 30'%3e%3cpath stroke='rgba%28255,255,255,0.85%29' stroke-width='2' d='M4 7h22M4 15h22M4 23h22'/%3e%3c/svg%3e");
+}
+
+.dropdown-menu-dark .dropdown-item:hover {
+  background-color: var(--wsu-crimson);
+}
+
+/* ---------- Role Badges ---------- */
+.role-badge {
+  font-size: .68rem;
+  padding: .2em .55em;
+  border-radius: 4px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .05em;
+  white-space: nowrap;
+}
+
+.role-Admin        { background-color: #dc3545; color: #fff; }
+.role-Organizer    { background-color: #0d6efd; color: #fff; }
+.role-Participant  { background-color: #198754; color: #fff; }
+
+/* ---------- Status / Type Badges ---------- */
+.badge-public    { background-color: #d1e7dd; color: #0a3622; }
+.badge-private   { background-color: #fff3cd; color: #664d03; }
+.badge-virtual   { background-color: #cfe2ff; color: #084298; }
+.badge-in-person { background-color: #e2d9f3; color: #432874; }
+.badge-active    { background-color: #d1e7dd; color: #0a3622; }
+.badge-removed   { background-color: #f8d7da; color: #842029; }
+.badge-pending   { background-color: #fff3cd; color: #664d03; }
+.badge-approved  { background-color: #d1e7dd; color: #0a3622; }
+.badge-rejected  { background-color: #f8d7da; color: #842029; }
+.badge-banned    { background-color: #f8d7da; color: #842029; }
+
+/* ---------- Cards ---------- */
+.card {
+  border-radius: var(--radius-card);
+  border: 1px solid #e2e2e2;
+  background: #fff;
+}
+
+.group-card {
+  transition: transform .15s ease, box-shadow .15s ease;
+}
+
+.group-card:hover {
+  transform: translateY(-3px);
+  box-shadow: var(--shadow-md);
+}
+
+.stat-card {
+  border-radius: var(--radius-card);
+  padding: 1.5rem;
+  text-align: center;
+  border: none;
+  box-shadow: var(--shadow-sm);
+}
+
+/* ---------- Hero Section ---------- */
+.hero-section {
+  background: linear-gradient(135deg, var(--wsu-crimson) 0%, #b83248 50%, var(--wsu-crimson-light) 100%);
+  color: #fff;
+  padding: 80px 0;
+}
+
+.hero-section .lead {
+  font-size: 1.15rem;
+  opacity: .9;
+}
+
+/* ---------- Section Headers ---------- */
+.section-header {
+  border-left: 4px solid var(--wsu-crimson);
+  padding-left: .75rem;
+  margin-bottom: 1.25rem;
+}
+
+/* ---------- Avatar Circle ---------- */
+.avatar-circle {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-size: .8rem;
+  flex-shrink: 0;
+  background-color: #6c757d;
+  color: #fff;
+}
+
+/* ---------- Discussion Thread ---------- */
+.comment-item {
+  border-left: 3px solid var(--wsu-crimson);
+  padding-left: 1rem;
+  margin-bottom: 1.25rem;
+}
+
+/* ---------- Sidebar Nav ---------- */
+.sidebar-nav .nav-link {
+  color: var(--wsu-gray);
+  padding: .5rem .9rem;
+  border-radius: 8px;
+  margin-bottom: 3px;
+  font-size: .92rem;
+}
+
+.sidebar-nav .nav-link:hover,
+.sidebar-nav .nav-link.active {
+  background-color: #f0e8ea;
+  color: var(--wsu-crimson);
+}
+
+/* ---------- Role Switcher (Demo Debug Panel) ---------- */
+#role-switcher-panel {
+  position: fixed;
+  bottom: 20px;
+  right: 20px;
+  z-index: 9999;
+  background: #fff;
+  border-radius: 12px;
+  box-shadow: 0 4px 24px rgba(0,0,0,.22);
+  padding: 12px 14px;
+  min-width: 210px;
+  border: 2px solid #dee2e6;
+}
+
+#role-switcher-panel .panel-header {
+  font-size: .72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .06em;
+  color: #888;
+  margin-bottom: 8px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+/* ---------- Toast Container ---------- */
+#toast-container {
+  position: fixed;
+  top: 80px;
+  right: 20px;
+  z-index: 11000;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+/* ---------- 403 / Error Pages ---------- */
+.error-page {
+  min-height: 60vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+}
+
+.error-code {
+  font-size: 5rem;
+  font-weight: 900;
+  color: var(--wsu-crimson);
+  line-height: 1;
+}
+
+/* ---------- Profile Avatar (large) ---------- */
+.profile-avatar {
+  width: 90px;
+  height: 90px;
+  border-radius: 50%;
+  font-size: 2rem;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  background-color: var(--wsu-crimson);
+}
+
+/* ---------- Table tweaks ---------- */
+.table thead th {
+  background-color: #f8f8f8;
+  font-size: .85rem;
+  text-transform: uppercase;
+  letter-spacing: .04em;
+  color: var(--wsu-gray);
+  border-bottom: 2px solid #dee2e6;
+}
+
+/* ---------- Footer ---------- */
+.site-footer {
+  background-color: #2d2d2d;
+  color: #aaa;
+  padding: 32px 0 20px;
+  margin-top: auto;
+  font-size: .88rem;
+}
+
+.site-footer a { color: #ccc; text-decoration: none; }
+.site-footer a:hover { color: #fff; }
+
+/* ---------- Form Validation ---------- */
+.was-validated .form-control:valid {
+  border-color: #198754;
+}
+
+/* ---------- Misc Utilities ---------- */
+.btn-wsu {
+  background-color: var(--wsu-crimson);
+  border-color: var(--wsu-crimson);
+  color: #fff;
+}
+
+.btn-wsu:hover {
+  background-color: var(--wsu-crimson-dark);
+  border-color: var(--wsu-crimson-dark);
+  color: #fff;
+}
+
+.text-wsu { color: var(--wsu-crimson) !important; }
+.bg-wsu   { background-color: var(--wsu-crimson) !important; }
+
+.border-wsu { border-color: var(--wsu-crimson) !important; }
+
+.cursor-pointer { cursor: pointer; }
+
+.card-overlay-removed {
+  position: absolute;
+  inset: 0;
+  background: rgba(255,255,255,.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 2;
+  border-radius: var(--radius-card);
+}
+
+/* Private group gate */
+.private-gate-card {
+  border: 2px dashed #dee2e6;
+  background: #fafafa;
+  border-radius: var(--radius-card);
+  padding: 3rem;
+  text-align: center;
+}
+
+/* ---------- Responsive ---------- */
+@media (max-width: 768px) {
+  .hero-section { padding: 50px 0; }
+  .error-code    { font-size: 3.5rem; }
+  #role-switcher-panel { bottom: 10px; right: 10px; min-width: 180px; }
+}

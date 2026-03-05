@@ -1,0 +1,202 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Private Group — StudyGroup WSU</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link href="../assets/css/styles.css" rel="stylesheet">
+</head>
+<body>
+
+<!-- S-06: GROUP DETAIL — PRIVATE GATE (non-member view) -->
+<div id="navbar-placeholder"></div>
+
+<main class="py-4">
+  <div class="container">
+    <nav aria-label="breadcrumb" class="mb-3">
+      <ol class="breadcrumb small">
+        <li class="breadcrumb-item"><a href="groups-list.html">Browse Groups</a></li>
+        <li class="breadcrumb-item active" id="bc-name">Private Group</li>
+      </ol>
+    </nav>
+
+    <div id="page-root">
+      <!-- Populated by JS -->
+    </div>
+  </div>
+</main>
+
+<footer class="site-footer">
+  <div class="container text-center">
+    <p class="small mb-0 text-muted">&copy; 2026 StudyGroup WSU &bull; CPTS 489 Prototype</p>
+  </div>
+</footer>
+
+<div id="toast-container"></div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+<script src="../assets/js/data.js"></script>
+<script src="../assets/js/app.js"></script>
+<script src="../assets/js/ui.js"></script>
+<script>
+  initApp();
+
+  const groupId = getParam('id') || 'g2';
+  const state   = getState();
+  const group   = state.groups.find(g => g.id === groupId);
+  const role    = getCurrentRole();
+  const userId  = getCurrentUserId();
+
+  if (!group) {
+    document.getElementById('page-root').innerHTML =
+      `<div class="alert alert-danger">Group not found. <a href="groups-list.html">Back to list</a></div>`;
+  } else {
+    // If admin or member — send to full detail
+    const isMember = group.members.includes(userId);
+    if (isMember || role === 'Admin') {
+      window.location.href = `group-detail.html?id=${groupId}`;
+    }
+
+    document.getElementById('bc-name').textContent = group.name;
+    document.title = group.name + ' (Private) — StudyGroup WSU';
+
+    const hasPending = state.joinRequests.some(
+      jr => jr.groupId === groupId && jr.userId === userId && jr.status === 'pending'
+    );
+
+    let requestSection = '';
+    if (hasPending) {
+      requestSection = `
+        <div class="alert alert-warning border-0 d-inline-flex align-items-center gap-2">
+          <span class="fs-5">&#8987;</span>
+          <div>
+            <strong>Request Pending</strong> — Your join request is under review by the organizer.
+            You'll be notified once a decision is made.
+          </div>
+        </div>`;
+    } else {
+      requestSection = `
+        <div class="mb-3">
+          <h5 class="fw-semibold mb-1">Request to Join</h5>
+          <p class="text-muted small mb-3">Tell the organizer a bit about yourself and why you want to join this group.</p>
+          <textarea class="form-control mb-2" id="request-message" rows="3"
+            placeholder="e.g. I'm currently enrolled in ${group.course} and am looking for a structured study group to prepare for the midterm…"></textarea>
+          <button class="btn btn-warning text-dark fw-semibold px-4" onclick="submitRequest()">
+            Send Join Request
+          </button>
+        </div>`;
+    }
+
+    document.getElementById('page-root').innerHTML = `
+      <div class="row g-4">
+        <div class="col-lg-8">
+          <!-- Group Header -->
+          <div class="card border-0 shadow-sm mb-4">
+            <div class="card-body p-4">
+              <div class="d-flex gap-2 flex-wrap mb-2">
+                <span class="badge bg-dark">${group.course}</span>
+                ${visibilityBadge(group.visibility)}
+                ${formatBadge(group.format)}
+              </div>
+              <h2 class="fw-bold mb-1">${group.name}</h2>
+              <p class="text-muted small">Organized by <strong>${group.organizerName}</strong></p>
+
+              <!-- Public info only -->
+              <div class="row g-3 mb-3">
+                <div class="col-sm-6">
+                  <div class="small text-muted fw-semibold mb-1">Schedule</div>
+                  <div>&#128197; ${group.schedule}</div>
+                </div>
+                <div class="col-sm-6">
+                  <div class="small text-muted fw-semibold mb-1">Format</div>
+                  <div>${group.format === 'virtual' ? '&#128187; Virtual' : '&#128205; In-Person'}</div>
+                </div>
+                <div class="col-sm-6">
+                  <div class="small text-muted fw-semibold mb-1">Group Size</div>
+                  <div>&#128101; ${group.members.length} / ${group.maxSize} members</div>
+                </div>
+                <div class="col-sm-6">
+                  <div class="small text-muted fw-semibold mb-1">Tags</div>
+                  <div>${group.tags.map(t => `<span class="badge bg-light text-dark border me-1">${t}</span>`).join('')}</div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Private Gate -->
+          <div class="private-gate-card mb-4">
+            <div class="display-4 mb-3">&#128274;</div>
+            <h4 class="fw-bold mb-2">This is a Private Group</h4>
+            <p class="text-muted mb-4">
+              Full details — including location, meeting link, and discussion threads — are only visible to members.<br>
+              Request to join and the organizer will review your application.
+            </p>
+            ${requestSection}
+          </div>
+        </div>
+
+        <!-- Sidebar -->
+        <div class="col-lg-4">
+          <div class="card border-0 shadow-sm mb-3">
+            <div class="card-body p-3">
+              <h6 class="fw-bold mb-3 section-header">&#128100; Organizer</h6>
+              <div class="d-flex align-items-center gap-2">
+                <div class="avatar-circle" style="background:#0d6efd; width:42px; height:42px;">
+                  ${state.users.find(u => u.id === group.organizerId)?.avatar || 'OO'}
+                </div>
+                <div>
+                  <div class="fw-semibold">${group.organizerName}</div>
+                  <div class="text-muted small">${state.users.find(u => u.id === group.organizerId)?.major || ''}</div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="card border-0 shadow-sm">
+            <div class="card-body p-3">
+              <h6 class="fw-bold mb-2 section-header">About Private Groups</h6>
+              <ul class="small text-muted ps-3">
+                <li>Organizer manually reviews all join requests</li>
+                <li>Full details shared only after approval</li>
+                <li>Group discussion is members-only</li>
+                <li>You can withdraw your request any time</li>
+              </ul>
+              <a href="groups-list.html" class="btn btn-sm btn-outline-secondary w-100 mt-2">Back to Browse</a>
+            </div>
+          </div>
+        </div>
+      </div>`;
+  }
+
+  window.submitRequest = function() {
+    const input   = document.getElementById('request-message');
+    const message = input ? input.value.trim() : '';
+    const s       = getState();
+    const g       = s.groups.find(x => x.id === groupId);
+    const user    = getCurrentUser();
+    if (!g || !user) return;
+
+    const exists = s.joinRequests.find(
+      jr => jr.groupId === groupId && jr.userId === userId && jr.status === 'pending'
+    );
+    if (exists) { showToast('You already have a pending request.', 'warning'); return; }
+
+    s.joinRequests.push({
+      id:          'jr' + Date.now(),
+      groupId,
+      groupName:   g.name,
+      userId,
+      userName:    user.name,
+      userEmail:   user.email,
+      status:      'pending',
+      requestedAt: new Date().toISOString().split('T')[0],
+      message:     message || 'Requesting to join.',
+    });
+    saveState(s);
+    showToast('Join request submitted! The organizer will review it soon.', 'success');
+    setTimeout(() => location.reload(), 1000);
+  };
+</script>
+</body>
+</html>

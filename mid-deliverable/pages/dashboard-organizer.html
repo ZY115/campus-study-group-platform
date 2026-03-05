@@ -1,0 +1,222 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Organizer Dashboard — StudyGroup WSU</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link href="../assets/css/styles.css" rel="stylesheet">
+</head>
+<body>
+
+<!-- S-09: ORGANIZER DASHBOARD -->
+<div id="navbar-placeholder"></div>
+
+<main class="py-4">
+  <div class="container">
+
+    <!-- Welcome Banner -->
+    <div class="card border-0 shadow-sm mb-4" style="background:linear-gradient(135deg,#0d6efd,#0958d9); color:#fff;">
+      <div class="card-body p-4 d-flex justify-content-between align-items-center flex-wrap gap-3">
+        <div>
+          <h3 class="fw-bold mb-1" id="welcome-name">Organizer Dashboard</h3>
+          <p class="mb-0 opacity-75">Manage your study groups and review join requests.</p>
+        </div>
+        <a href="group-create.html" class="btn btn-light fw-semibold">+ Create New Group</a>
+      </div>
+    </div>
+
+    <!-- Stats -->
+    <div class="row g-3 mb-4" id="stats-row"></div>
+
+    <div class="row g-4">
+      <!-- Main: My Created Groups -->
+      <div class="col-lg-8">
+        <div class="d-flex justify-content-between align-items-center mb-3">
+          <h5 class="fw-bold section-header mb-0">&#127775; My Created Groups</h5>
+          <a href="group-create.html" class="btn btn-sm btn-wsu">+ New Group</a>
+        </div>
+
+        <div id="created-groups-area">
+          <!-- Populated by JS -->
+        </div>
+      </div>
+
+      <!-- Sidebar -->
+      <div class="col-lg-4">
+        <!-- Pending Requests Summary -->
+        <div class="card border-0 shadow-sm mb-3">
+          <div class="card-header bg-white border-bottom fw-bold py-3">
+            &#9203; Pending Join Requests
+          </div>
+          <div class="card-body p-0">
+            <ul class="list-group list-group-flush" id="pending-requests-list"></ul>
+          </div>
+          <div class="card-footer bg-transparent">
+            <a href="organizer-requests.html" class="btn btn-sm btn-outline-primary w-100">View All Requests</a>
+          </div>
+        </div>
+
+        <!-- Quick Links -->
+        <div class="card border-0 shadow-sm">
+          <div class="card-body p-3">
+            <h6 class="fw-bold mb-3">Quick Actions</h6>
+            <nav class="sidebar-nav">
+              <ul class="nav flex-column">
+                <li class="nav-item"><a class="nav-link" href="group-create.html">&#10133; Create New Group</a></li>
+                <li class="nav-item"><a class="nav-link" href="organizer-requests.html">&#128065; Review Requests</a></li>
+                <li class="nav-item"><a class="nav-link" href="groups-list.html">&#128269; Browse All Groups</a></li>
+                <li class="nav-item"><a class="nav-link" href="profile.html">&#128100; My Profile</a></li>
+              </ul>
+            </nav>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</main>
+
+<footer class="site-footer">
+  <div class="container text-center">
+    <p class="small mb-0 text-muted">&copy; 2026 StudyGroup WSU &bull; CPTS 489 Prototype</p>
+  </div>
+</footer>
+
+<div id="toast-container"></div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+<script src="../assets/js/data.js"></script>
+<script src="../assets/js/app.js"></script>
+<script src="../assets/js/ui.js"></script>
+<script>
+  initApp();
+  guardPage(['Organizer', 'Admin']);
+
+  const state  = getState();
+  const userId = getCurrentUserId();
+  const user   = getCurrentUser();
+
+  document.getElementById('welcome-name').textContent = `Welcome, ${user ? user.name.split(' ')[0] : 'Organizer'}!`;
+
+  // Groups created by this organizer
+  const myGroups = state.groups.filter(g => g.organizerId === userId);
+  const activeCreated = myGroups.filter(g => g.status === 'active');
+
+  // Pending requests for my groups
+  const myGroupIds     = myGroups.map(g => g.id);
+  const allPending     = state.joinRequests.filter(
+    jr => myGroupIds.includes(jr.groupId) && jr.status === 'pending'
+  );
+  const totalMembers   = myGroups.reduce((sum, g) => sum + g.members.length, 0);
+
+  // Stats
+  document.getElementById('stats-row').innerHTML = `
+    <div class="col-6 col-md-3">
+      <div class="stat-card bg-white shadow-sm">
+        <div class="fw-bold text-wsu display-6">${activeCreated.length}</div>
+        <div class="text-muted small">Active Groups</div>
+      </div>
+    </div>
+    <div class="col-6 col-md-3">
+      <div class="stat-card bg-white shadow-sm">
+        <div class="fw-bold text-primary display-6">${totalMembers}</div>
+        <div class="text-muted small">Total Members</div>
+      </div>
+    </div>
+    <div class="col-6 col-md-3">
+      <div class="stat-card bg-white shadow-sm">
+        <div class="fw-bold text-warning display-6">${allPending.length}</div>
+        <div class="text-muted small">Pending Requests</div>
+      </div>
+    </div>
+    <div class="col-6 col-md-3">
+      <div class="stat-card bg-white shadow-sm">
+        <div class="fw-bold text-secondary display-6">${myGroups.length}</div>
+        <div class="text-muted small">Total Groups</div>
+      </div>
+    </div>`;
+
+  // Created groups list (table style + manage links)
+  const area = document.getElementById('created-groups-area');
+  if (myGroups.length === 0) {
+    area.innerHTML = `
+      <div class="text-center py-5 text-muted card border-0 shadow-sm">
+        <div class="display-5 mb-3">&#128218;</div>
+        <h5>No groups yet.</h5>
+        <p class="small">Create your first study group to get started.</p>
+        <a href="group-create.html" class="btn btn-wsu mt-2 mx-auto" style="width:fit-content;">Create a Group</a>
+      </div>`;
+  } else {
+    area.innerHTML = `
+      <div class="card border-0 shadow-sm">
+        <div class="card-body p-0">
+          <div class="table-responsive">
+            <table class="table table-hover mb-0 align-middle">
+              <thead>
+                <tr>
+                  <th>Group</th>
+                  <th>Format</th>
+                  <th class="text-center">Members</th>
+                  <th class="text-center">Pending</th>
+                  <th>Status</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${myGroups.map(g => {
+                  const pending = state.joinRequests.filter(jr => jr.groupId === g.id && jr.status === 'pending').length;
+                  return `
+                    <tr>
+                      <td>
+                        <div class="fw-semibold">${g.name}</div>
+                        <div class="text-muted small">${g.course} &bull; ${visibilityBadge(g.visibility)}</div>
+                      </td>
+                      <td>${formatBadge(g.format)}</td>
+                      <td class="text-center small">${g.members.length}/${g.maxSize}</td>
+                      <td class="text-center">
+                        ${pending > 0
+                          ? `<span class="badge bg-warning text-dark">${pending}</span>`
+                          : '<span class="text-muted small">—</span>'}
+                      </td>
+                      <td>${statusBadge(g.status)}</td>
+                      <td>
+                        <a href="group-detail.html?id=${g.id}" class="btn btn-sm btn-outline-secondary me-1">View</a>
+                        <a href="organizer-group-manage.html?id=${g.id}" class="btn btn-sm btn-outline-primary">Manage</a>
+                      </td>
+                    </tr>`;
+                }).join('')}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>`;
+  }
+
+  // Pending requests sidebar (quick approve/reject)
+  const pendingEl = document.getElementById('pending-requests-list');
+  if (allPending.length === 0) {
+    pendingEl.innerHTML = `<li class="list-group-item text-muted small fst-italic py-3 text-center">No pending requests.</li>`;
+  } else {
+    pendingEl.innerHTML = allPending.slice(0, 5).map(jr => `
+      <li class="list-group-item py-2 px-3">
+        <div class="d-flex justify-content-between align-items-start mb-1">
+          <div>
+            <div class="small fw-semibold">${jr.userName}</div>
+            <div class="text-muted" style="font-size:.72rem;">${jr.groupName}</div>
+          </div>
+          <span class="badge badge-pending">&#8987;</span>
+        </div>
+        <div class="d-flex gap-1">
+          <button class="btn btn-xs btn-success" style="font-size:.72rem; padding:.2rem .5rem;" onclick="approveRequest('${jr.id}')">Approve</button>
+          <button class="btn btn-xs btn-danger"  style="font-size:.72rem; padding:.2rem .5rem;" onclick="rejectRequest('${jr.id}')">Reject</button>
+        </div>
+      </li>`).join('');
+    if (allPending.length > 5) {
+      pendingEl.insertAdjacentHTML('beforeend',
+        `<li class="list-group-item text-center small text-muted">+${allPending.length - 5} more — <a href="organizer-requests.html">View all</a></li>`);
+    }
+  }
+</script>
+</body>
+</html>

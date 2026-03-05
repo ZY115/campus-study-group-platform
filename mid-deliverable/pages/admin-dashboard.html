@@ -1,0 +1,244 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Admin Dashboard — StudyGroup WSU</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link href="../assets/css/styles.css" rel="stylesheet">
+</head>
+<body>
+
+<!-- S-13: ADMIN DASHBOARD -->
+<div id="navbar-placeholder"></div>
+
+<main class="py-4">
+  <div class="container">
+
+    <!-- Header -->
+    <div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-2">
+      <div>
+        <h2 class="fw-bold mb-0">&#128736;&#65039; Admin Dashboard</h2>
+        <p class="text-muted small mb-0">Platform overview and moderation controls — WSU StudyGroup</p>
+      </div>
+      <span class="role-badge role-Admin fs-7 py-2 px-3">Admin Access</span>
+    </div>
+
+    <!-- Stats Cards -->
+    <div class="row g-3 mb-5" id="stats-row">
+      <!-- Populated by JS -->
+    </div>
+
+    <div class="row g-4">
+      <!-- Left: Recent Activity + Alerts -->
+      <div class="col-lg-8">
+
+        <!-- Active Alerts -->
+        <div class="card border-0 shadow-sm mb-4">
+          <div class="card-header bg-white border-bottom fw-bold py-3 d-flex justify-content-between">
+            <span>&#128680; Platform Alerts</span>
+            <span class="badge bg-danger" id="alert-count">0</span>
+          </div>
+          <div class="card-body p-0">
+            <ul class="list-group list-group-flush" id="alerts-list"></ul>
+          </div>
+        </div>
+
+        <!-- Recent Groups -->
+        <div class="card border-0 shadow-sm mb-4">
+          <div class="card-header bg-white border-bottom fw-bold py-3 d-flex justify-content-between">
+            <span>&#128218; Recent Groups</span>
+            <a href="admin-groups.html" class="btn btn-sm btn-outline-secondary">Manage All</a>
+          </div>
+          <div class="card-body p-0">
+            <div class="table-responsive">
+              <table class="table table-hover mb-0 align-middle">
+                <thead><tr><th>Group</th><th>Organizer</th><th>Members</th><th>Status</th><th></th></tr></thead>
+                <tbody id="recent-groups"></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        <!-- Recent Users -->
+        <div class="card border-0 shadow-sm">
+          <div class="card-header bg-white border-bottom fw-bold py-3 d-flex justify-content-between">
+            <span>&#128100; Recent Users</span>
+            <a href="admin-users.html" class="btn btn-sm btn-outline-secondary">Manage All</a>
+          </div>
+          <div class="card-body p-0">
+            <div class="table-responsive">
+              <table class="table table-hover mb-0 align-middle">
+                <thead><tr><th>User</th><th>Role</th><th>Status</th><th>Joined</th></tr></thead>
+                <tbody id="recent-users"></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Right: Quick Actions + System Info -->
+      <div class="col-lg-4">
+        <div class="card border-0 shadow-sm mb-3">
+          <div class="card-body p-3">
+            <h6 class="fw-bold mb-3 section-header">Quick Actions</h6>
+            <div class="d-grid gap-2">
+              <a href="admin-users.html"  class="btn btn-outline-primary  text-start">&#128100; User Management</a>
+              <a href="admin-groups.html" class="btn btn-outline-danger   text-start">&#128218; Group Moderation</a>
+              <a href="organizer-requests.html" class="btn btn-outline-warning text-start text-dark">&#9203; Review All Requests</a>
+              <a href="groups-list.html"  class="btn btn-outline-secondary text-start">&#128269; Browse All Groups</a>
+            </div>
+          </div>
+        </div>
+
+        <div class="card border-0 shadow-sm mb-3">
+          <div class="card-body p-3">
+            <h6 class="fw-bold mb-3 section-header">&#128202; Platform Health</h6>
+            <ul class="list-unstyled small mb-0" id="health-list"></ul>
+          </div>
+        </div>
+
+        <div class="card border-0 shadow-sm">
+          <div class="card-body p-3">
+            <h6 class="fw-bold mb-2 section-header">About This Panel</h6>
+            <p class="small text-muted mb-0">
+              The Admin panel provides full oversight of the WSU StudyGroup platform.
+              Admins can view all groups (including removed), manage users, and override any organizer action.
+            </p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</main>
+
+<footer class="site-footer">
+  <div class="container text-center">
+    <p class="small mb-0 text-muted">&copy; 2026 StudyGroup WSU &bull; CPTS 489 Prototype</p>
+  </div>
+</footer>
+
+<div id="toast-container"></div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+<script src="../assets/js/data.js"></script>
+<script src="../assets/js/app.js"></script>
+<script src="../assets/js/ui.js"></script>
+<script>
+  initApp();
+  guardPage(['Admin']);
+
+  const state = getState();
+
+  // ---- Stats ----
+  const totalUsers    = state.users.length;
+  const activeUsers   = state.users.filter(u => u.status === 'active').length;
+  const bannedUsers   = state.users.filter(u => u.status === 'banned').length;
+  const totalGroups   = state.groups.length;
+  const activeGroups  = state.groups.filter(g => g.status === 'active').length;
+  const removedGroups = state.groups.filter(g => g.status === 'removed').length;
+  const totalReports  = state.groups.reduce((s, g) => s + (g.reports || 0), 0);
+  const pendingReqs   = state.joinRequests.filter(jr => jr.status === 'pending').length;
+
+  document.getElementById('stats-row').innerHTML = `
+    <div class="col-6 col-md-3">
+      <div class="stat-card bg-white shadow-sm">
+        <div class="fw-bold text-primary display-6">${totalUsers}</div>
+        <div class="text-muted small">Total Users</div>
+        <div class="text-muted" style="font-size:.7rem;">${bannedUsers} banned</div>
+      </div>
+    </div>
+    <div class="col-6 col-md-3">
+      <div class="stat-card bg-white shadow-sm">
+        <div class="fw-bold text-wsu display-6">${totalGroups}</div>
+        <div class="text-muted small">Total Groups</div>
+        <div class="text-muted" style="font-size:.7rem;">${removedGroups} removed</div>
+      </div>
+    </div>
+    <div class="col-6 col-md-3">
+      <div class="stat-card bg-white shadow-sm">
+        <div class="fw-bold text-warning display-6">${pendingReqs}</div>
+        <div class="text-muted small">Pending Requests</div>
+        <div class="text-muted" style="font-size:.7rem;">Across all groups</div>
+      </div>
+    </div>
+    <div class="col-6 col-md-3">
+      <div class="stat-card bg-white shadow-sm">
+        <div class="fw-bold text-danger display-6">${totalReports}</div>
+        <div class="text-muted small">Reports Filed</div>
+        <div class="text-muted" style="font-size:.7rem;">Content flags</div>
+      </div>
+    </div>`;
+
+  // ---- Alerts ----
+  const alerts = [];
+  if (bannedUsers > 0) alerts.push({ level: 'danger',  msg: `${bannedUsers} user${bannedUsers>1?'s are':' is'} currently banned from the platform.` });
+  if (removedGroups > 0) alerts.push({ level: 'warning', msg: `${removedGroups} group${removedGroups>1?'s have':' has'} been removed from public view.` });
+  if (totalReports > 0)  alerts.push({ level: 'warning', msg: `${totalReports} content report${totalReports>1?'s':''} filed — review in Group Moderation.` });
+  if (pendingReqs > 0)   alerts.push({ level: 'info',    msg: `${pendingReqs} join request${pendingReqs>1?'s':''} pending organizer review.` });
+  if (alerts.length === 0) alerts.push({ level: 'success', msg: 'No active alerts. Platform is operating normally.' });
+
+  document.getElementById('alert-count').textContent = alerts.filter(a => a.level !== 'success').length;
+  document.getElementById('alerts-list').innerHTML = alerts.map(a => `
+    <li class="list-group-item list-group-item-${a.level} py-2 small">
+      ${a.level === 'danger' ? '&#128680;' : a.level === 'warning' ? '&#9888;' : a.level === 'success' ? '&#10003;' : 'ℹ️'} ${a.msg}
+    </li>`).join('');
+
+  // ---- Recent Groups ----
+  document.getElementById('recent-groups').innerHTML = state.groups.slice().reverse().slice(0, 5).map(g => `
+    <tr>
+      <td>
+        <div class="small fw-semibold">${g.name}</div>
+        <div class="text-muted" style="font-size:.72rem;">${g.course}</div>
+      </td>
+      <td class="small">${g.organizerName}</td>
+      <td class="small text-center">${g.members.length}/${g.maxSize}</td>
+      <td>${statusBadge(g.status)}</td>
+      <td>
+        ${g.status === 'active'
+          ? `<button class="btn btn-xs btn-outline-danger" style="font-size:.7rem; padding:.15rem .4rem;" onclick="removeGroup('${g.id}')">Remove</button>`
+          : `<button class="btn btn-xs btn-outline-success" style="font-size:.7rem; padding:.15rem .4rem;" onclick="restoreGroup('${g.id}')">Restore</button>`}
+      </td>
+    </tr>`).join('');
+
+  // ---- Recent Users ----
+  document.getElementById('recent-users').innerHTML = state.users.slice(0, 5).map(u => `
+    <tr>
+      <td>
+        <div class="d-flex align-items-center gap-2">
+          <div class="avatar-circle" style="background:${u.role==='Admin'?'#dc3545':u.role==='Organizer'?'#0d6efd':'#198754'}; width:30px;height:30px;font-size:.65rem;">${u.avatar}</div>
+          <div>
+            <div class="small fw-semibold">${u.name}</div>
+            <div class="text-muted" style="font-size:.7rem;">${u.email}</div>
+          </div>
+        </div>
+      </td>
+      <td><span class="role-badge role-${u.role}">${u.role}</span></td>
+      <td>${statusBadge(u.status)}</td>
+      <td class="text-muted small">${fmtDate(u.joinedAt)}</td>
+    </tr>`).join('');
+
+  // ---- Platform Health ----
+  const ratio = activeUsers / totalUsers * 100;
+  document.getElementById('health-list').innerHTML = `
+    <li class="mb-2">
+      <div class="d-flex justify-content-between small mb-1">
+        <span class="text-muted">Active Users</span><span>${activeUsers}/${totalUsers} (${ratio.toFixed(0)}%)</span>
+      </div>
+      <div class="progress" style="height:5px;">
+        <div class="progress-bar bg-success" style="width:${ratio}%;"></div>
+      </div>
+    </li>
+    <li class="mb-2">
+      <div class="d-flex justify-content-between small mb-1">
+        <span class="text-muted">Active Groups</span><span>${activeGroups}/${totalGroups}</span>
+      </div>
+      <div class="progress" style="height:5px;">
+        <div class="progress-bar bg-primary" style="width:${(activeGroups/totalGroups*100).toFixed(0)}%;"></div>
+      </div>
+    </li>
+    <li class="text-muted small">&#9679; Prototype mode — no real backend</li>`;
+</script>
+</body>
+</html>

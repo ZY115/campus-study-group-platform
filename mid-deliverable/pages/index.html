@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>StudyGroup WSU — Find Your Study Group</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link href="../assets/css/styles.css" rel="stylesheet">
+</head>
+<body>
+
+<!-- S-01: HOME PAGE -->
+<div id="navbar-placeholder"></div>
+
+<!-- Hero -->
+<section class="hero-section">
+  <div class="container text-center">
+    <h1 class="display-4 fw-bold mb-3">Find Your Study Group at WSU</h1>
+    <p class="lead mb-4">Connect with classmates, coordinate sessions, and ace your courses together.<br>
+      Browse by course, schedule, or format — in-person or virtual.</p>
+    <div class="d-flex justify-content-center gap-3 flex-wrap">
+      <a href="groups-list.html" class="btn btn-light btn-lg fw-semibold px-4">Browse Groups</a>
+      <a href="auth-register.html" class="btn btn-outline-light btn-lg px-4">Sign Up Free</a>
+      <a href="auth-login.html"   class="btn btn-outline-light btn-lg px-4">Log In</a>
+    </div>
+  </div>
+</section>
+
+<main>
+  <!-- Stats Bar -->
+  <section class="py-4 bg-white border-bottom">
+    <div class="container">
+      <div class="row text-center g-3" id="stats-row">
+        <!-- Populated by JS -->
+      </div>
+    </div>
+  </section>
+
+  <!-- Featured Groups -->
+  <section class="py-5">
+    <div class="container">
+      <div class="section-header mb-4">
+        <h2 class="h4 mb-0 fw-bold">Featured Study Groups</h2>
+        <p class="text-muted small mb-0">Active groups you can join right now</p>
+      </div>
+      <div class="row" id="featured-groups">
+        <!-- Populated by JS -->
+      </div>
+      <div class="text-center mt-3">
+        <a href="groups-list.html" class="btn btn-wsu px-5">View All Groups &rarr;</a>
+      </div>
+    </div>
+  </section>
+
+  <!-- How It Works -->
+  <section class="py-5 bg-white">
+    <div class="container">
+      <h2 class="h4 fw-bold text-center mb-5">How It Works</h2>
+      <div class="row g-4 text-center">
+        <div class="col-md-4">
+          <div class="display-5 mb-3">&#128270;</div>
+          <h5 class="fw-bold">1. Discover</h5>
+          <p class="text-muted small">Search and filter study groups by course code, time, format, or visibility. Find exactly what you need.</p>
+        </div>
+        <div class="col-md-4">
+          <div class="display-5 mb-3">&#128101;</div>
+          <h5 class="fw-bold">2. Join</h5>
+          <p class="text-muted small">Instantly join public groups or submit a request for private ones. Organizers review and approve members.</p>
+        </div>
+        <div class="col-md-4">
+          <div class="display-5 mb-3">&#128218;</div>
+          <h5 class="fw-bold">3. Study Together</h5>
+          <p class="text-muted small">Coordinate sessions, share meeting links, and communicate through built-in discussion threads.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Role CTA -->
+  <section class="py-5" style="background:var(--wsu-light-bg);">
+    <div class="container">
+      <div class="row g-4">
+        <div class="col-md-6">
+          <div class="card h-100 border-0 shadow-sm p-4">
+            <div class="display-6 mb-3">&#9997;&#65039;</div>
+            <h4 class="fw-bold">Are you a student looking to join?</h4>
+            <p class="text-muted">Browse existing groups, join public ones instantly, or request access to private study circles for your course.</p>
+            <a href="groups-list.html" class="btn btn-wsu mt-auto align-self-start">Browse Groups</a>
+          </div>
+        </div>
+        <div class="col-md-6">
+          <div class="card h-100 border-0 shadow-sm p-4">
+            <div class="display-6 mb-3">&#127775;</div>
+            <h4 class="fw-bold">Want to organize a group?</h4>
+            <p class="text-muted">Create a study group for your course, set the schedule and format, and manage your members — all in one place.</p>
+            <a href="group-create.html" class="btn btn-outline-primary mt-auto align-self-start">Create a Group</a>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+</main>
+
+<!-- Footer -->
+<footer class="site-footer">
+  <div class="container">
+    <div class="row">
+      <div class="col-md-4 mb-3">
+        <h6 class="text-white fw-bold mb-2">&#127891; StudyGroup WSU</h6>
+        <p class="small">A campus platform for Washington State University students to form and join study groups.</p>
+      </div>
+      <div class="col-md-4 mb-3">
+        <h6 class="text-white fw-bold mb-2">Quick Links</h6>
+        <ul class="list-unstyled small">
+          <li><a href="groups-list.html">Browse Groups</a></li>
+          <li><a href="group-create.html">Create a Group</a></li>
+          <li><a href="auth-login.html">Log In</a></li>
+        </ul>
+      </div>
+      <div class="col-md-4 mb-3">
+        <h6 class="text-white fw-bold mb-2">CPTS 489 — Team</h6>
+        <p class="small">Finley Blaylock &bull; Edgar Apodaca &bull; Yuhang Zhang</p>
+        <p class="small text-muted">Prototype — Spring 2026</p>
+      </div>
+    </div>
+    <hr style="border-color:#555;">
+    <p class="text-center small text-muted mb-0">&copy; 2026 StudyGroup WSU. Course project prototype.</p>
+  </div>
+</footer>
+
+<!-- Toast Container -->
+<div id="toast-container"></div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+<script src="../assets/js/data.js"></script>
+<script src="../assets/js/app.js"></script>
+<script src="../assets/js/ui.js"></script>
+<script>
+  initApp();
+
+  // Render stats
+  const state = getState();
+  const activeGroups = state.groups.filter(g => g.status === 'active');
+  const totalMembers = new Set(state.groups.flatMap(g => g.members)).size;
+  const courses      = new Set(state.groups.map(g => g.course)).size;
+
+  document.getElementById('stats-row').innerHTML = `
+    <div class="col-4">
+      <div class="fw-bold text-wsu display-6">${activeGroups.length}</div>
+      <div class="text-muted small">Active Groups</div>
+    </div>
+    <div class="col-4">
+      <div class="fw-bold text-wsu display-6">${totalMembers}</div>
+      <div class="text-muted small">Students Enrolled</div>
+    </div>
+    <div class="col-4">
+      <div class="fw-bold text-wsu display-6">${courses}</div>
+      <div class="text-muted small">Courses Covered</div>
+    </div>`;
+
+  // Featured groups: first 3 active public groups
+  const featured = activeGroups.filter(g => g.visibility === 'public').slice(0, 3);
+  renderGroupsGrid('featured-groups', featured);
+</script>
+</body>
+</html>

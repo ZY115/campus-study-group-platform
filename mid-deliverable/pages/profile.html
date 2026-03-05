@@ -1,0 +1,273 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>My Profile — StudyGroup WSU</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link href="../assets/css/styles.css" rel="stylesheet">
+</head>
+<body>
+
+<!-- S-10: PROFILE PAGE -->
+<div id="navbar-placeholder"></div>
+
+<main class="py-4">
+  <div class="container">
+    <div class="row g-4">
+
+      <!-- Profile Card -->
+      <div class="col-lg-4">
+        <div class="card border-0 shadow-sm mb-3">
+          <div class="card-body text-center p-4">
+            <div class="profile-avatar mx-auto mb-3" id="profile-avatar">??</div>
+            <h4 class="fw-bold mb-0" id="profile-name">Loading…</h4>
+            <p class="text-muted small mb-2" id="profile-email"></p>
+            <span class="role-badge" id="profile-role-badge"></span>
+            <hr>
+            <p class="text-muted small text-start mb-2" id="profile-bio"></p>
+            <div class="text-start small text-muted">
+              <div><strong>Major:</strong> <span id="profile-major"></span></div>
+              <div><strong>Member Since:</strong> <span id="profile-joined"></span></div>
+              <div><strong>Status:</strong> <span id="profile-status"></span></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Activity Summary -->
+        <div class="card border-0 shadow-sm">
+          <div class="card-body p-3">
+            <h6 class="fw-bold mb-3 section-header">Activity Summary</h6>
+            <ul class="list-unstyled small mb-0" id="activity-summary"></ul>
+          </div>
+        </div>
+      </div>
+
+      <!-- Edit Profile + Groups -->
+      <div class="col-lg-8">
+        <!-- Edit Form -->
+        <div class="card border-0 shadow-sm mb-4">
+          <div class="card-header bg-white border-bottom fw-bold py-3">
+            &#9998; Edit Profile
+          </div>
+          <div class="card-body p-4">
+            <form id="profile-form" novalidate>
+              <div class="row g-3">
+                <div class="col-md-6">
+                  <label class="form-label fw-semibold">First Name</label>
+                  <input type="text" class="form-control" id="edit-first" required>
+                  <div class="invalid-feedback">Required.</div>
+                </div>
+                <div class="col-md-6">
+                  <label class="form-label fw-semibold">Last Name</label>
+                  <input type="text" class="form-control" id="edit-last" required>
+                  <div class="invalid-feedback">Required.</div>
+                </div>
+              </div>
+              <div class="mt-3">
+                <label class="form-label fw-semibold">Major / Program</label>
+                <input type="text" class="form-control" id="edit-major">
+              </div>
+              <div class="mt-3">
+                <label class="form-label fw-semibold">Bio</label>
+                <textarea class="form-control" id="edit-bio" rows="3" maxlength="300"
+                  placeholder="Tell others about yourself — your year, interests, study style…"></textarea>
+                <div class="form-text"><span id="bio-count">0</span>/300 characters</div>
+              </div>
+              <div class="mt-3">
+                <label class="form-label fw-semibold">Email <span class="text-muted small">(read-only)</span></label>
+                <input type="email" class="form-control bg-light" id="edit-email" readonly>
+              </div>
+              <div class="mt-4">
+                <button type="submit" class="btn btn-wsu me-2">Save Changes</button>
+                <button type="button" class="btn btn-outline-secondary" onclick="location.reload()">Cancel</button>
+              </div>
+            </form>
+          </div>
+        </div>
+
+        <!-- My Groups Tabs -->
+        <div class="card border-0 shadow-sm">
+          <div class="card-header bg-white border-bottom py-0">
+            <ul class="nav nav-tabs card-header-tabs" id="groups-tab">
+              <li class="nav-item">
+                <button class="nav-link active" data-bs-toggle="tab" data-bs-target="#tab-joined">Joined Groups</button>
+              </li>
+              <li class="nav-item" id="created-tab-item">
+                <button class="nav-link" data-bs-toggle="tab" data-bs-target="#tab-created">Created Groups</button>
+              </li>
+              <li class="nav-item">
+                <button class="nav-link" data-bs-toggle="tab" data-bs-target="#tab-requests">Requests</button>
+              </li>
+            </ul>
+          </div>
+          <div class="card-body tab-content p-3">
+            <div class="tab-pane fade show active" id="tab-joined">
+              <div id="joined-list" class="row g-2"></div>
+            </div>
+            <div class="tab-pane fade" id="tab-created">
+              <div id="created-list" class="row g-2"></div>
+            </div>
+            <div class="tab-pane fade" id="tab-requests">
+              <div id="requests-list"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</main>
+
+<footer class="site-footer">
+  <div class="container text-center">
+    <p class="small mb-0 text-muted">&copy; 2026 StudyGroup WSU &bull; CPTS 489 Prototype</p>
+  </div>
+</footer>
+
+<div id="toast-container"></div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+<script src="../assets/js/data.js"></script>
+<script src="../assets/js/app.js"></script>
+<script src="../assets/js/ui.js"></script>
+<script>
+  initApp();
+
+  const state  = getState();
+  const userId = getCurrentUserId();
+  const role   = getCurrentRole();
+  const user   = getCurrentUser();
+
+  function populateProfile() {
+    if (!user) return;
+    document.getElementById('profile-avatar').textContent    = user.avatar;
+    document.getElementById('profile-name').textContent      = user.name;
+    document.getElementById('profile-email').textContent     = user.email;
+    document.getElementById('profile-major').textContent     = user.major;
+    document.getElementById('profile-joined').textContent    = fmtDate(user.joinedAt);
+    document.getElementById('profile-status').innerHTML      = statusBadge(user.status);
+    document.getElementById('profile-bio').textContent       = user.bio || 'No bio yet.';
+
+    const roleEl = document.getElementById('profile-role-badge');
+    roleEl.className = `role-badge role-${user.role}`;
+    roleEl.textContent = user.role;
+
+    // Avatar background color
+    const avatarEl = document.getElementById('profile-avatar');
+    avatarEl.style.background = role === 'Admin' ? '#dc3545' : role === 'Organizer' ? '#0d6efd' : '#198754';
+
+    // Populate edit form
+    const nameParts = user.name.split(' ');
+    document.getElementById('edit-first').value = nameParts[0] || '';
+    document.getElementById('edit-last').value  = nameParts.slice(1).join(' ') || '';
+    document.getElementById('edit-major').value = user.major || '';
+    document.getElementById('edit-bio').value   = user.bio || '';
+    document.getElementById('edit-email').value = user.email;
+    document.getElementById('bio-count').textContent = (user.bio || '').length;
+  }
+
+  populateProfile();
+
+  // Activity summary
+  const joined   = state.groups.filter(g => g.members.includes(userId) && g.status === 'active');
+  const created  = state.groups.filter(g => g.organizerId === userId);
+  const requests = state.joinRequests.filter(jr => jr.userId === userId);
+  const pending  = requests.filter(jr => jr.status === 'pending');
+
+  document.getElementById('activity-summary').innerHTML = `
+    <li class="d-flex justify-content-between mb-2">
+      <span class="text-muted">Groups joined</span><strong>${joined.length}</strong>
+    </li>
+    <li class="d-flex justify-content-between mb-2">
+      <span class="text-muted">Groups created</span><strong>${created.length}</strong>
+    </li>
+    <li class="d-flex justify-content-between mb-2">
+      <span class="text-muted">Join requests sent</span><strong>${requests.length}</strong>
+    </li>
+    <li class="d-flex justify-content-between">
+      <span class="text-muted">Pending requests</span>
+      <strong class="text-warning">${pending.length}</strong>
+    </li>`;
+
+  // Hide "Created Groups" tab for Participants
+  if (role === 'Participant') {
+    document.getElementById('created-tab-item').classList.add('d-none');
+  }
+
+  // Joined Groups tab
+  const joinedEl = document.getElementById('joined-list');
+  if (joined.length === 0) {
+    joinedEl.innerHTML = `<div class="col-12 text-muted small fst-italic py-2">No joined groups. <a href="groups-list.html">Browse groups</a></div>`;
+  } else {
+    joinedEl.innerHTML = joined.map(g => `
+      <div class="col-md-6">
+        <a href="group-detail.html?id=${g.id}" class="text-decoration-none">
+          <div class="card border-0 bg-light mb-2 p-2">
+            <div class="small fw-semibold">${g.name}</div>
+            <div class="text-muted" style="font-size:.75rem;">${g.course} &bull; ${g.format}</div>
+          </div>
+        </a>
+      </div>`).join('');
+  }
+
+  // Created Groups tab
+  const createdEl = document.getElementById('created-list');
+  if (created.length === 0) {
+    createdEl.innerHTML = `<div class="col-12 text-muted small fst-italic py-2">No groups created yet. <a href="group-create.html">Create one</a></div>`;
+  } else {
+    createdEl.innerHTML = created.map(g => `
+      <div class="col-md-6">
+        <a href="organizer-group-manage.html?id=${g.id}" class="text-decoration-none">
+          <div class="card border-0 bg-light mb-2 p-2">
+            <div class="small fw-semibold">${g.name} ${statusBadge(g.status)}</div>
+            <div class="text-muted" style="font-size:.75rem;">${g.course} &bull; ${g.members.length} members</div>
+          </div>
+        </a>
+      </div>`).join('');
+  }
+
+  // Requests tab
+  const reqEl = document.getElementById('requests-list');
+  if (requests.length === 0) {
+    reqEl.innerHTML = `<p class="text-muted small fst-italic py-2">No join requests sent.</p>`;
+  } else {
+    reqEl.innerHTML = `
+      <table class="table table-sm table-hover mb-0">
+        <thead><tr><th>Group</th><th>Status</th><th>Date</th></tr></thead>
+        <tbody>
+          ${requests.map(jr => `
+            <tr>
+              <td class="small">${jr.groupName}</td>
+              <td>${statusBadge(jr.status)}</td>
+              <td class="text-muted small">${jr.requestedAt}</td>
+            </tr>`).join('')}
+        </tbody>
+      </table>`;
+  }
+
+  // Bio character counter
+  document.getElementById('edit-bio').addEventListener('input', function() {
+    document.getElementById('bio-count').textContent = this.value.length;
+  });
+
+  // Save profile
+  document.getElementById('profile-form').addEventListener('submit', function(e) {
+    e.preventDefault();
+    this.classList.add('was-validated');
+    if (!this.checkValidity()) return;
+
+    const s    = getState();
+    const u    = s.users.find(x => x.id === userId);
+    if (!u) return;
+    u.name  = (document.getElementById('edit-first').value + ' ' + document.getElementById('edit-last').value).trim();
+    u.major = document.getElementById('edit-major').value.trim();
+    u.bio   = document.getElementById('edit-bio').value.trim();
+    saveState(s);
+
+    showToast('Profile updated successfully! &#10003;', 'success');
+    setTimeout(() => location.reload(), 900);
+  });
+</script>
+</body>
+</html>
