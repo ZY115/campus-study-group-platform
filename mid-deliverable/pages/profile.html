@@ -128,76 +128,65 @@
 <div id="toast-container"></div>
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
-<script src="../assets/js/data.js"></script>
 <script src="../assets/js/app.js"></script>
 <script src="../assets/js/ui.js"></script>
 <script>
-  initApp();
+(async () => {
+  await initApp();
+  if (!await guardPage()) return;
 
-  const state  = getState();
-  const userId = getCurrentUserId();
-  const role   = getCurrentRole();
-  const user   = getCurrentUser();
+  let profile;
+  try { profile = await apiGet('/api/users/me'); }
+  catch (_) { showToast('Could not load profile.', 'danger'); return; }
 
-  function populateProfile() {
-    if (!user) return;
-    document.getElementById('profile-avatar').textContent    = user.avatar;
-    document.getElementById('profile-name').textContent      = user.name;
-    document.getElementById('profile-email').textContent     = user.email;
-    document.getElementById('profile-major').textContent     = user.major;
-    document.getElementById('profile-joined').textContent    = fmtDate(user.joinedAt);
-    document.getElementById('profile-status').innerHTML      = statusBadge(user.status);
-    document.getElementById('profile-bio').textContent       = user.bio || 'No bio yet.';
+  const role = profile.role;
 
-    const roleEl = document.getElementById('profile-role-badge');
-    roleEl.className = `role-badge role-${user.role}`;
-    roleEl.textContent = user.role;
+  const avatarEl = document.getElementById('profile-avatar');
+  avatarEl.textContent = profile.avatar;
+  avatarEl.style.background = role === 'Admin' ? '#dc3545' : role === 'Organizer' ? '#0d6efd' : '#198754';
 
-    // Avatar background color
-    const avatarEl = document.getElementById('profile-avatar');
-    avatarEl.style.background = role === 'Admin' ? '#dc3545' : role === 'Organizer' ? '#0d6efd' : '#198754';
+  document.getElementById('profile-name').textContent   = profile.name;
+  document.getElementById('profile-email').textContent  = profile.email;
+  document.getElementById('profile-major').textContent  = profile.major || '—';
+  document.getElementById('profile-joined').textContent = fmtDate(profile.createdAt);
+  document.getElementById('profile-status').innerHTML   = statusBadge(profile.status);
+  document.getElementById('profile-bio').textContent    = profile.bio || 'No bio yet.';
 
-    // Populate edit form
-    const nameParts = user.name.split(' ');
-    document.getElementById('edit-first').value = nameParts[0] || '';
-    document.getElementById('edit-last').value  = nameParts.slice(1).join(' ') || '';
-    document.getElementById('edit-major').value = user.major || '';
-    document.getElementById('edit-bio').value   = user.bio || '';
-    document.getElementById('edit-email').value = user.email;
-    document.getElementById('bio-count').textContent = (user.bio || '').length;
-  }
+  const roleEl = document.getElementById('profile-role-badge');
+  roleEl.className = `role-badge role-${role}`;
+  roleEl.textContent = role;
 
-  populateProfile();
+  const nameParts = profile.name.split(' ');
+  document.getElementById('edit-first').value = nameParts[0] || '';
+  document.getElementById('edit-last').value  = nameParts.slice(1).join(' ') || '';
+  document.getElementById('edit-major').value = profile.major || '';
+  document.getElementById('edit-bio').value   = profile.bio   || '';
+  document.getElementById('edit-email').value = profile.email;
+  document.getElementById('bio-count').textContent = (profile.bio || '').length;
 
-  // Activity summary
-  const joined   = state.groups.filter(g => g.members.includes(userId) && g.status === 'active');
-  const created  = state.groups.filter(g => g.organizerId === userId);
-  const requests = state.joinRequests.filter(jr => jr.userId === userId);
-  const pending  = requests.filter(jr => jr.status === 'pending');
-
+  const s = profile.stats;
   document.getElementById('activity-summary').innerHTML = `
     <li class="d-flex justify-content-between mb-2">
-      <span class="text-muted">Groups joined</span><strong>${joined.length}</strong>
+      <span class="text-muted">Groups joined</span><strong>${s.joinedCount}</strong>
     </li>
     <li class="d-flex justify-content-between mb-2">
-      <span class="text-muted">Groups created</span><strong>${created.length}</strong>
+      <span class="text-muted">Groups created</span><strong>${s.createdCount}</strong>
     </li>
     <li class="d-flex justify-content-between mb-2">
-      <span class="text-muted">Join requests sent</span><strong>${requests.length}</strong>
+      <span class="text-muted">Join requests sent</span><strong>${s.requestsCount}</strong>
     </li>
     <li class="d-flex justify-content-between">
       <span class="text-muted">Pending requests</span>
-      <strong class="text-warning">${pending.length}</strong>
+      <strong class="text-warning">${s.pendingCount}</strong>
     </li>`;
 
-  // Hide "Created Groups" tab for Participants
   if (role === 'Participant') {
     document.getElementById('created-tab-item').classList.add('d-none');
   }
 
-  // Joined Groups tab
+  const joined = profile.joinedGroups;
   const joinedEl = document.getElementById('joined-list');
-  if (joined.length === 0) {
+  if (!joined.length) {
     joinedEl.innerHTML = `<div class="col-12 text-muted small fst-italic py-2">No joined groups. <a href="groups-list.html">Browse groups</a></div>`;
   } else {
     joinedEl.innerHTML = joined.map(g => `
@@ -211,9 +200,9 @@
       </div>`).join('');
   }
 
-  // Created Groups tab
+  const created  = profile.createdGroups;
   const createdEl = document.getElementById('created-list');
-  if (created.length === 0) {
+  if (!created.length) {
     createdEl.innerHTML = `<div class="col-12 text-muted small fst-italic py-2">No groups created yet. <a href="group-create.html">Create one</a></div>`;
   } else {
     createdEl.innerHTML = created.map(g => `
@@ -221,15 +210,15 @@
         <a href="organizer-group-manage.html?id=${g.id}" class="text-decoration-none">
           <div class="card border-0 bg-light mb-2 p-2">
             <div class="small fw-semibold">${g.name} ${statusBadge(g.status)}</div>
-            <div class="text-muted" style="font-size:.75rem;">${g.course} &bull; ${g.members.length} members</div>
+            <div class="text-muted" style="font-size:.75rem;">${g.course}</div>
           </div>
         </a>
       </div>`).join('');
   }
 
-  // Requests tab
-  const reqEl = document.getElementById('requests-list');
-  if (requests.length === 0) {
+  const requests = profile.requests;
+  const reqEl    = document.getElementById('requests-list');
+  if (!requests.length) {
     reqEl.innerHTML = `<p class="text-muted small fst-italic py-2">No join requests sent.</p>`;
   } else {
     reqEl.innerHTML = `
@@ -240,34 +229,37 @@
             <tr>
               <td class="small">${jr.groupName}</td>
               <td>${statusBadge(jr.status)}</td>
-              <td class="text-muted small">${jr.requestedAt}</td>
+              <td class="text-muted small">${fmtDate(jr.requestedAt)}</td>
             </tr>`).join('')}
         </tbody>
       </table>`;
   }
 
-  // Bio character counter
   document.getElementById('edit-bio').addEventListener('input', function() {
     document.getElementById('bio-count').textContent = this.value.length;
   });
 
-  // Save profile
-  document.getElementById('profile-form').addEventListener('submit', function(e) {
+  document.getElementById('profile-form').addEventListener('submit', async function(e) {
     e.preventDefault();
     this.classList.add('was-validated');
     if (!this.checkValidity()) return;
 
-    const s    = getState();
-    const u    = s.users.find(x => x.id === userId);
-    if (!u) return;
-    u.name  = (document.getElementById('edit-first').value + ' ' + document.getElementById('edit-last').value).trim();
-    u.major = document.getElementById('edit-major').value.trim();
-    u.bio   = document.getElementById('edit-bio').value.trim();
-    saveState(s);
+    const name  = (document.getElementById('edit-first').value + ' ' + document.getElementById('edit-last').value).trim();
+    const major = document.getElementById('edit-major').value.trim();
+    const bio   = document.getElementById('edit-bio').value.trim();
 
-    showToast('Profile updated successfully! &#10003;', 'success');
-    setTimeout(() => location.reload(), 900);
+    const btn = this.querySelector('[type="submit"]');
+    btn.disabled = true;
+    try {
+      await apiPut('/api/users/me', { name, major, bio });
+      showToast('Profile updated successfully! &#10003;', 'success');
+      setTimeout(() => location.reload(), 900);
+    } catch (err) {
+      showToast(err.message || 'Failed to update profile.', 'danger');
+      btn.disabled = false;
+    }
   });
+})();
 </script>
 </body>
 </html>

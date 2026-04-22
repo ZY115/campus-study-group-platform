@@ -40,14 +40,7 @@
         <a href="auth-login.html" class="btn btn-outline-primary">Switch Account</a>
       </div>
 
-      <!-- Switch Role Panel (embedded) -->
-      <div class="card border-0 shadow-sm d-inline-block mx-auto p-3" style="min-width:280px;">
-        <h6 class="fw-bold mb-3 text-muted small text-uppercase">Switch Role to Access</h6>
-        <div id="inline-role-switcher" class="d-flex gap-2 justify-content-center">
-          <!-- Populated by JS -->
-        </div>
-        <p class="text-muted mb-0 mt-2" style="font-size:.72rem;">Switching role will reload the page with new permissions.</p>
-      </div>
+      <div class="card border-0 shadow-sm d-inline-block mx-auto p-3" style="min-width:280px;" id="denied-extra"></div>
 
     </div>
   </div>
@@ -62,47 +55,29 @@
 <div id="toast-container"></div>
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
-<script src="../assets/js/data.js"></script>
 <script src="../assets/js/app.js"></script>
 <script src="../assets/js/ui.js"></script>
 <script>
-  initApp();
+(async () => {
+  await initApp();
+  const user   = window._sgpUser;
+  const role   = user?.role || 'Guest';
+  const denied = sessionStorage.getItem('sgp_denied_from') || '';
 
-  const role    = getCurrentRole();
-  const denied  = sessionStorage.getItem('sgp_denied_from') || '';
-  const roleMap = { Participant: 'Participant pages only', Organizer: 'Participant + Organizer pages', Admin: 'All pages' };
-
-  // Role badge
   const badge = document.getElementById('current-role-badge');
   badge.className = `role-badge fs-6 py-2 px-4 role-${role}`;
   badge.textContent = role;
 
-  // Denied from
-  if (denied) {
-    const fileName = denied.split('/').pop();
-    document.getElementById('denied-from-info').innerHTML =
-      `You tried to access: <strong>${fileName}</strong><br>
-      Your role (<strong>${role}</strong>) can access: <em>${roleMap[role] || '—'}</em>`;
-  } else {
-    document.getElementById('denied-from-info').innerHTML =
-      `Your role (<strong>${role}</strong>) can access: <em>${roleMap[role] || '—'}</em>`;
-  }
+  const roleMap = { Participant: 'Participant pages only', Organizer: 'Participant + Organizer pages', Admin: 'All pages' };
+  document.getElementById('denied-from-info').innerHTML = denied
+    ? `You tried to access: <strong>${denied.split('/').pop()}</strong><br>Your role (<strong>${role}</strong>) can access: <em>${roleMap[role] || '—'}</em>`
+    : `Your role (<strong>${role}</strong>) can access: <em>${roleMap[role] || '—'}</em>`;
 
-  // Denied message hint
   document.getElementById('denied-msg').textContent =
-    role === 'Participant'
-      ? 'Participants cannot access Organizer or Admin pages. Switch your role to demonstrate the full feature.'
-      : role === 'Organizer'
-      ? 'Organizers cannot access Admin-only pages. Switch to Admin to see the full admin panel.'
-      : 'This page is restricted. Contact the platform administrator.';
-
-  // Inline role switcher
-  const roles = ['Participant', 'Organizer', 'Admin'];
-  const colors = { Participant: 'success', Organizer: 'primary', Admin: 'danger' };
-  document.getElementById('inline-role-switcher').innerHTML = roles.map(r => `
-    <button class="btn btn-${r === role ? colors[r] : 'outline-' + colors[r]} btn-sm" onclick="switchRole('${r}')">
-      ${r}
-    </button>`).join('');
+    role === 'Participant' ? 'Participants cannot access Organizer or Admin pages.'
+    : role === 'Organizer' ? 'Organizers cannot access Admin-only pages.'
+    : 'This page is restricted. Please log in with the appropriate account.';
+})();
 </script>
 </body>
 </html>

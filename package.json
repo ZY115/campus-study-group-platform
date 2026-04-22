@@ -1,0 +1,27 @@
+{
+  "name": "campus-study-group-platform",
+  "version": "1.0.0",
+  "description": "WSU Campus Study Group Platform — CPTS 489 Final Project",
+  "main": "app.js",
+  "scripts": {
+    "start": "node app.js",
+    "dev": "nodemon app.js",
+    "seed": "node seeders/seed.js"
+  },
+  "dependencies": {
+    "bcryptjs": "^2.4.3",
+    "dotenv": "^16.4.5",
+    "express": "^4.19.2",
+    "express-session": "^1.18.0",
+    "sequelize": "^6.37.3",
+    "sqlite3": "^5.1.7"
+  },
+  "devDependencies": {
+    "nodemon": "^3.1.0"
+  },
+  "authors": [
+    "Finley Blaylock",
+    "Edgar Apodaca",
+    "Yuhang Zhang"
+  ]
+}

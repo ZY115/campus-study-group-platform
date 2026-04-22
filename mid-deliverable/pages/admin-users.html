@@ -91,45 +91,37 @@
 <div id="toast-container"></div>
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
-<script src="../assets/js/data.js"></script>
 <script src="../assets/js/app.js"></script>
 <script src="../assets/js/ui.js"></script>
 <script>
-  initApp();
-  guardPage(['Admin']);
+(async () => {
+  await initApp();
+  if (!await guardPage(['Admin'])) return;
+
+  let allUsers = [];
+  try { allUsers = await apiGet('/api/admin/users'); } catch (_) {}
 
   let activeRole   = 'all';
   let activeStatus = 'all';
   let searchTerm   = '';
 
   function getFiltered() {
-    const state = getState();
-    let users = state.users;
+    let users = allUsers;
     if (activeRole   !== 'all') users = users.filter(u => u.role === activeRole);
     if (activeStatus !== 'all') users = users.filter(u => u.status === activeStatus);
     if (searchTerm) users = users.filter(u =>
-      u.name.toLowerCase().includes(searchTerm) ||
-      u.email.toLowerCase().includes(searchTerm) ||
-      u.major.toLowerCase().includes(searchTerm)
+      (u.name  || '').toLowerCase().includes(searchTerm) ||
+      (u.email || '').toLowerCase().includes(searchTerm) ||
+      (u.major || '').toLowerCase().includes(searchTerm)
     );
     return users;
   }
 
-  function render() {
-    const users = getFiltered();
-    renderUserRows('users-tbody', users);
-    document.getElementById('result-count').textContent =
-      `Showing ${users.length} user${users.length !== 1 ? 's' : ''}`;
-  }
-
-  // Stats
   function renderStats() {
-    const state = getState();
-    const total   = state.users.length;
-    const active  = state.users.filter(u => u.status === 'active').length;
-    const banned  = state.users.filter(u => u.status === 'banned').length;
-    const organizers = state.users.filter(u => u.role === 'Organizer').length;
-
+    const total      = allUsers.length;
+    const active     = allUsers.filter(u => u.status === 'active').length;
+    const banned     = allUsers.filter(u => u.status === 'banned').length;
+    const organizers = allUsers.filter(u => u.role === 'Organizer').length;
     document.getElementById('user-stats').innerHTML = `
       <div class="col-6 col-md-3">
         <div class="stat-card bg-white shadow-sm">
@@ -157,7 +149,13 @@
       </div>`;
   }
 
-  // Role filter buttons
+  function render() {
+    const users = getFiltered();
+    renderUserRows('users-tbody', users);
+    document.getElementById('result-count').textContent =
+      `Showing ${users.length} user${users.length !== 1 ? 's' : ''}`;
+  }
+
   document.getElementById('role-filter').querySelectorAll('button').forEach(btn => {
     btn.addEventListener('click', function() {
       document.querySelectorAll('#role-filter button').forEach(b => b.classList.remove('active'));
@@ -167,7 +165,6 @@
     });
   });
 
-  // Status filter buttons
   document.getElementById('status-filter').querySelectorAll('button').forEach(btn => {
     btn.addEventListener('click', function() {
       document.querySelectorAll('#status-filter button').forEach(b => b.classList.remove('active'));
@@ -184,6 +181,7 @@
 
   renderStats();
   render();
+})();
 </script>
 </body>
 </html>

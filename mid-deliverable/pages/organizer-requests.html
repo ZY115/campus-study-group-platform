@@ -83,26 +83,18 @@
 <div id="toast-container"></div>
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
-<script src="../assets/js/data.js"></script>
 <script src="../assets/js/app.js"></script>
 <script src="../assets/js/ui.js"></script>
 <script>
-  initApp();
-  guardPage(['Organizer', 'Admin']);
+(async () => {
+  await initApp();
+  if (!await guardPage(['Organizer', 'Admin'])) return;
 
-  const state    = getState();
-  const userId   = getCurrentUserId();
-  const role     = getCurrentRole();
+  let allRequests = [];
+  try { allRequests = await apiGet('/api/join-requests'); }
+  catch (_) {}
 
-  // For Admin: show all requests; for Organizer: only their groups
-  const myGroupIds = role === 'Admin'
-    ? state.groups.map(g => g.id)
-    : state.groups.filter(g => g.organizerId === userId).map(g => g.id);
-
-  let allRequests = state.joinRequests.filter(jr => myGroupIds.includes(jr.groupId));
-
-  // Stats pills
-  const countOf = (s) => allRequests.filter(r => r.status === s).length;
+  const countOf = s => allRequests.filter(r => r.status === s).length;
   document.getElementById('request-stats').innerHTML = `
     <span class="badge bg-secondary fs-7 py-2 px-3">Total: ${allRequests.length}</span>
     <span class="badge bg-warning text-dark fs-7 py-2 px-3">Pending: ${countOf('pending')}</span>
@@ -116,39 +108,34 @@
     let reqs = allRequests;
     if (activeStatus !== 'all') reqs = reqs.filter(r => r.status === activeStatus);
     if (searchTerm) reqs = reqs.filter(r =>
-      r.userName.toLowerCase().includes(searchTerm) ||
-      r.groupName.toLowerCase().includes(searchTerm) ||
-      r.userEmail.toLowerCase().includes(searchTerm)
+      (r.userName  || '').toLowerCase().includes(searchTerm) ||
+      (r.groupName || '').toLowerCase().includes(searchTerm) ||
+      (r.userEmail || '').toLowerCase().includes(searchTerm)
     );
     return reqs;
   }
 
-  function render() {
-    // Reload from state in case of in-page updates
-    const s = getState();
-    const ids = role === 'Admin'
-      ? s.groups.map(g => g.id)
-      : s.groups.filter(g => g.organizerId === userId).map(g => g.id);
-    allRequests = s.joinRequests.filter(jr => ids.includes(jr.groupId));
+  async function render() {
+    try { allRequests = await apiGet('/api/join-requests'); } catch (_) {}
     renderRequestRows('requests-tbody', getFiltered());
   }
 
-  // Filter buttons
   document.getElementById('status-filter').querySelectorAll('button').forEach(btn => {
     btn.addEventListener('click', function() {
       document.querySelectorAll('#status-filter button').forEach(b => b.classList.remove('active'));
       this.classList.add('active');
       activeStatus = this.dataset.status;
-      render();
+      renderRequestRows('requests-tbody', getFiltered());
     });
   });
 
   document.getElementById('search-req').addEventListener('input', function() {
     searchTerm = this.value.toLowerCase().trim();
-    render();
+    renderRequestRows('requests-tbody', getFiltered());
   });
 
-  render();
+  renderRequestRows('requests-tbody', getFiltered());
+})();
 </script>
 </body>
 </html>

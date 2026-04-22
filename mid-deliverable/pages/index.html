@@ -132,35 +132,41 @@
 <div id="toast-container"></div>
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
-<script src="../assets/js/data.js"></script>
 <script src="../assets/js/app.js"></script>
 <script src="../assets/js/ui.js"></script>
 <script>
-  initApp();
+(async () => {
+  await initApp();
 
-  // Render stats
-  const state = getState();
-  const activeGroups = state.groups.filter(g => g.status === 'active');
-  const totalMembers = new Set(state.groups.flatMap(g => g.members)).size;
-  const courses      = new Set(state.groups.map(g => g.course)).size;
+  try {
+    const groups = await apiGet('/api/groups');
+    const activeGroups = groups.filter(g => g.status === 'active');
+    const courses = new Set(groups.map(g => g.course)).size;
+    const totalMembers = groups.reduce((s, g) => s + (g.memberCount || 0), 0);
 
-  document.getElementById('stats-row').innerHTML = `
-    <div class="col-4">
-      <div class="fw-bold text-wsu display-6">${activeGroups.length}</div>
-      <div class="text-muted small">Active Groups</div>
-    </div>
-    <div class="col-4">
-      <div class="fw-bold text-wsu display-6">${totalMembers}</div>
-      <div class="text-muted small">Students Enrolled</div>
-    </div>
-    <div class="col-4">
-      <div class="fw-bold text-wsu display-6">${courses}</div>
-      <div class="text-muted small">Courses Covered</div>
-    </div>`;
+    document.getElementById('stats-row').innerHTML = `
+      <div class="col-4">
+        <div class="fw-bold text-wsu display-6">${activeGroups.length}</div>
+        <div class="text-muted small">Active Groups</div>
+      </div>
+      <div class="col-4">
+        <div class="fw-bold text-wsu display-6">${totalMembers}</div>
+        <div class="text-muted small">Students Enrolled</div>
+      </div>
+      <div class="col-4">
+        <div class="fw-bold text-wsu display-6">${courses}</div>
+        <div class="text-muted small">Courses Covered</div>
+      </div>`;
 
-  // Featured groups: first 3 active public groups
-  const featured = activeGroups.filter(g => g.visibility === 'public').slice(0, 3);
-  renderGroupsGrid('featured-groups', featured);
+    // Featured groups: first 3 active public groups
+    const featured = activeGroups.filter(g => g.visibility === 'public').slice(0, 3);
+    renderGroupsGrid('featured-groups', featured);
+  } catch (_) {
+    document.getElementById('stats-row').innerHTML = '';
+    document.getElementById('featured-groups').innerHTML =
+      '<div class="col-12 text-muted text-center py-4">Could not load groups. Make sure the server is running.</div>';
+  }
+})();
 </script>
 </body>
 </html>

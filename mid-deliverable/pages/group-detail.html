@@ -36,216 +36,209 @@
 <div id="toast-container"></div>
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
-<script src="../assets/js/data.js"></script>
 <script src="../assets/js/app.js"></script>
 <script src="../assets/js/ui.js"></script>
 <script>
-  initApp();
+(async () => {
+  await initApp();
+  const groupId = getParam('id');
+  if (!groupId) { window.location.href = 'groups-list.html'; return; }
 
-  const groupId  = getParam('id') || 'g1';
-  const state    = getState();
-  const group    = state.groups.find(g => g.id === groupId);
-  const role     = getCurrentRole();
-  const userId   = getCurrentUserId();
-
-  if (!group) {
+  let group;
+  try { group = await apiGet(`/api/groups/${groupId}`); }
+  catch (err) {
     document.getElementById('detail-root').innerHTML =
       `<div class="col-12"><div class="alert alert-danger">Group not found. <a href="groups-list.html">Back to list</a></div></div>`;
-  } else {
-    // Redirect non-members to private gate
-    const isMember    = group.members.includes(userId);
-    const isOrganizer = group.organizerId === userId;
-    if (group.visibility === 'private' && !isMember && role !== 'Admin') {
-      window.location.href = `group-detail-private.html?id=${groupId}`;
-    }
+    return;
+  }
 
-    document.getElementById('bc-name').textContent = group.name;
-    document.title = group.name + ' — StudyGroup WSU';
+  // Redirect non-members of private groups to private gate
+  if (group.privateGate) {
+    window.location.href = `group-detail-private.html?id=${groupId}`;
+    return;
+  }
 
-    const memberUsers = state.users.filter(u => group.members.includes(u.id));
-    const pendingCount = state.joinRequests.filter(
-      jr => jr.groupId === groupId && jr.status === 'pending'
-    ).length;
+  const role        = getCurrentRole();
+  const isMember    = group.isMember;
+  const isOrganizer = group.isOrganizer;
 
-    // Membership action
-    let membershipAction = '';
-    if (group.status === 'removed') {
-      membershipAction = `<div class="alert alert-danger">This group has been removed by an administrator.</div>`;
-    } else if (isOrganizer) {
-      membershipAction = `
-        <span class="badge bg-secondary me-2">You are the Organizer</span>
-        <a href="organizer-group-manage.html?id=${groupId}" class="btn btn-sm btn-outline-primary">Edit Group</a>`;
-    } else if (isMember) {
-      membershipAction = `
-        <span class="badge badge-active me-2">&#10003; Member</span>
-        <button class="btn btn-sm btn-outline-danger" onclick="leaveGroupDetail()">Leave Group</button>`;
-    } else if (group.visibility === 'public') {
-      membershipAction = `<button class="btn btn-wsu" onclick="joinGroupDetail()">Join This Group</button>`;
-    }
+  document.getElementById('bc-name').textContent = group.name;
+  document.title = group.name + ' — StudyGroup WSU';
 
-    // Meeting info
-    const locationInfo = group.format === 'virtual'
-      ? `<a href="${group.meetingLink}" target="_blank" class="btn btn-sm btn-outline-info">Join Meeting Link</a>`
-      : `<span class="text-muted">&#128205; ${group.location}</span>`;
+  // Load comments
+  let comments = [];
+  try { comments = await apiGet(`/api/groups/${groupId}/comments`); } catch (_) {}
 
-    document.getElementById('detail-root').innerHTML = `
-      <!-- Left: Main Content -->
-      <div class="col-lg-8">
-        <!-- Group Header Card -->
-        <div class="card border-0 shadow-sm mb-4">
-          <div class="card-body p-4">
-            <div class="d-flex gap-2 flex-wrap mb-2">
-              <span class="badge bg-dark fs-7">${group.course}</span>
-              ${visibilityBadge(group.visibility)}
-              ${formatBadge(group.format)}
-              ${statusBadge(group.status)}
+  const memberDetails = group.memberDetails || [];
+  const organizer     = memberDetails.find(m => m.isOrganizer) || {};
+  const memberCount   = group.memberCount || 0;
+
+  let membershipAction = '';
+  if (group.status === 'removed') {
+    membershipAction = `<div class="alert alert-danger mb-0">This group has been removed by an administrator.</div>`;
+  } else if (isOrganizer) {
+    membershipAction = `
+      <span class="badge bg-secondary me-2">You are the Organizer</span>
+      <a href="organizer-group-manage.html?id=${group.id}" class="btn btn-sm btn-outline-primary">Edit Group</a>`;
+  } else if (isMember) {
+    membershipAction = `
+      <span class="badge badge-active me-2">&#10003; Member</span>
+      <button class="btn btn-sm btn-outline-danger" onclick="leaveGroupDetail()">Leave Group</button>`;
+  } else if (group.visibility === 'public') {
+    membershipAction = `<button class="btn btn-wsu" onclick="joinGroupDetail()">Join This Group</button>`;
+  }
+
+  const locationInfo = group.format === 'virtual' && group.meetingLink
+    ? `<a href="${group.meetingLink}" target="_blank" class="btn btn-sm btn-outline-info">Join Meeting Link</a>`
+    : group.format === 'virtual'
+    ? '<span class="text-muted">&#128187; Virtual (link TBD)</span>'
+    : `<span class="text-muted">&#128205; ${group.location || 'TBD'}</span>`;
+
+  const avatarBg = role === 'Admin' ? '#dc3545' : role === 'Organizer' ? '#0d6efd' : '#198754';
+  const canPost  = isMember || role === 'Admin';
+
+  document.getElementById('detail-root').innerHTML = `
+    <div class="col-lg-8">
+      <div class="card border-0 shadow-sm mb-4">
+        <div class="card-body p-4">
+          <div class="d-flex gap-2 flex-wrap mb-2">
+            <span class="badge bg-dark">${group.course}</span>
+            ${visibilityBadge(group.visibility)}
+            ${formatBadge(group.format)}
+            ${statusBadge(group.status)}
+          </div>
+          <h2 class="fw-bold mb-2">${group.name}</h2>
+          <p class="text-muted mb-3">${group.description}</p>
+          <div class="row g-3 mb-3">
+            <div class="col-sm-6">
+              <div class="small text-muted text-uppercase fw-semibold mb-1">Schedule</div>
+              <div>&#128197; ${group.schedule}</div>
             </div>
-            <h2 class="fw-bold mb-2">${group.name}</h2>
-            <p class="text-muted mb-3">${group.description}</p>
-
-            <div class="row g-3 mb-3">
-              <div class="col-sm-6">
-                <div class="small text-muted text-uppercase fw-semibold mb-1">Schedule</div>
-                <div>&#128197; ${group.schedule}</div>
-              </div>
-              <div class="col-sm-6">
-                <div class="small text-muted text-uppercase fw-semibold mb-1">Location / Format</div>
-                <div>${locationInfo}</div>
-              </div>
-              <div class="col-sm-6">
-                <div class="small text-muted text-uppercase fw-semibold mb-1">Group Size</div>
-                <div>&#128101; ${group.members.length} / ${group.maxSize} members
-                  <div class="progress mt-1" style="height:5px;">
-                    <div class="progress-bar bg-success" style="width:${Math.round(group.members.length/group.maxSize*100)}%;"></div>
-                  </div>
+            <div class="col-sm-6">
+              <div class="small text-muted text-uppercase fw-semibold mb-1">Location / Format</div>
+              <div>${locationInfo}</div>
+            </div>
+            <div class="col-sm-6">
+              <div class="small text-muted text-uppercase fw-semibold mb-1">Group Size</div>
+              <div>&#128101; ${memberCount} / ${group.maxSize} members
+                <div class="progress mt-1" style="height:5px;">
+                  <div class="progress-bar bg-success" style="width:${Math.round(memberCount/group.maxSize*100)}%;"></div>
                 </div>
               </div>
-              <div class="col-sm-6">
-                <div class="small text-muted text-uppercase fw-semibold mb-1">Tags</div>
-                <div>${group.tags.map(t => `<span class="badge bg-light text-dark border me-1">${t}</span>`).join('')}</div>
-              </div>
             </div>
-
-            <div class="d-flex align-items-center gap-3 flex-wrap pt-3 border-top">
-              ${membershipAction}
+            <div class="col-sm-6">
+              <div class="small text-muted text-uppercase fw-semibold mb-1">Tags</div>
+              <div>${(group.tags||[]).map(t => `<span class="badge bg-light text-dark border me-1">${t}</span>`).join('')}</div>
             </div>
           </div>
+          <div class="d-flex align-items-center gap-3 flex-wrap pt-3 border-top">${membershipAction}</div>
         </div>
+      </div>
 
-        <!-- Discussion Thread -->
-        <div class="card border-0 shadow-sm">
-          <div class="card-header bg-white border-bottom fw-bold py-3">
-            &#128172; Discussion Thread
-          </div>
-          <div class="card-body p-4">
-            <div id="comments-list" class="mb-4">
-              <!-- Rendered by JS -->
-            </div>
-
-            ${isMember || role === 'Admin'
-              ? `<div class="border-top pt-3">
-                  <h6 class="fw-semibold mb-2">Post a Message</h6>
-                  <div class="d-flex gap-2">
-                    <div class="avatar-circle flex-shrink-0" style="background: ${role === 'Admin' ? '#dc3545' : role === 'Organizer' ? '#0d6efd' : '#198754'}; width:36px;height:36px;font-size:.7rem;">
-                      ${getCurrentUser()?.avatar || '??'}
-                    </div>
-                    <div class="flex-grow-1">
-                      <textarea class="form-control mb-2" id="comment-input" rows="2" placeholder="Write a message to the group…"></textarea>
-                      <button class="btn btn-sm btn-wsu" onclick="submitComment()">Post</button>
-                    </div>
+      <div class="card border-0 shadow-sm">
+        <div class="card-header bg-white border-bottom fw-bold py-3">&#128172; Discussion Thread</div>
+        <div class="card-body p-4">
+          <div id="comments-list" class="mb-4"></div>
+          ${canPost
+            ? `<div class="border-top pt-3">
+                <h6 class="fw-semibold mb-2">Post a Message</h6>
+                <div class="d-flex gap-2">
+                  <div class="avatar-circle flex-shrink-0" style="background:${avatarBg};width:36px;height:36px;font-size:.7rem;">
+                    ${window._sgpUser?.avatar || '??'}
                   </div>
-                </div>`
-              : `<div class="alert alert-secondary border-0 small mb-0">
-                  Join this group to participate in the discussion.
-                </div>`
-            }
+                  <div class="flex-grow-1">
+                    <textarea class="form-control mb-2" id="comment-input" rows="2" placeholder="Write a message to the group…"></textarea>
+                    <button class="btn btn-sm btn-wsu" onclick="submitComment()">Post</button>
+                  </div>
+                </div>
+              </div>`
+            : `<div class="alert alert-secondary border-0 small mb-0">Join this group to participate in the discussion.</div>`}
+        </div>
+      </div>
+    </div>
+
+    <div class="col-lg-4">
+      <div class="card border-0 shadow-sm mb-3">
+        <div class="card-body p-3">
+          <h6 class="fw-bold mb-3 section-header">&#128100; Organizer</h6>
+          <div class="d-flex align-items-center gap-2">
+            <div class="avatar-circle" style="background:#0d6efd;width:42px;height:42px;">${organizer.avatar || 'OO'}</div>
+            <div>
+              <div class="fw-semibold">${group.organizerName}</div>
+              <div class="text-muted small">${organizer.major || ''}</div>
+            </div>
           </div>
         </div>
       </div>
 
-      <!-- Right: Sidebar -->
-      <div class="col-lg-4">
-        <!-- Organizer Card -->
-        <div class="card border-0 shadow-sm mb-3">
-          <div class="card-body p-3">
-            <h6 class="fw-bold mb-3 section-header">&#128100; Organizer</h6>
-            <div class="d-flex align-items-center gap-2">
-              <div class="avatar-circle" style="background:#0d6efd; width:42px;height:42px;">
-                ${state.users.find(u => u.id === group.organizerId)?.avatar || 'OO'}
-              </div>
-              <div>
-                <div class="fw-semibold">${group.organizerName}</div>
-                <div class="text-muted small">${state.users.find(u => u.id === group.organizerId)?.major || ''}</div>
-              </div>
-            </div>
-          </div>
+      <div class="card border-0 shadow-sm mb-3">
+        <div class="card-body p-3">
+          <h6 class="fw-bold mb-3 section-header">&#128101; Members (${memberDetails.length})</h6>
+          <ul class="list-unstyled mb-0">
+            ${memberDetails.map(u => `
+              <li class="d-flex align-items-center gap-2 mb-2">
+                <div class="avatar-circle" style="background:${u.role==='Organizer'?'#0d6efd':'#198754'};width:30px;height:30px;font-size:.65rem;">${u.avatar}</div>
+                <div>
+                  <div class="small fw-semibold">${u.name} ${u.isOrganizer ? '<span class="badge bg-secondary" style="font-size:.6rem;">Org</span>' : ''}</div>
+                  <div class="text-muted" style="font-size:.72rem;">${u.major||''}</div>
+                </div>
+              </li>`).join('')}
+          </ul>
         </div>
+      </div>
 
-        <!-- Members Card -->
-        <div class="card border-0 shadow-sm mb-3">
-          <div class="card-body p-3">
-            <h6 class="fw-bold mb-3 section-header">&#128101; Members (${memberUsers.length})</h6>
-            <ul class="list-unstyled mb-0">
-              ${memberUsers.map(u => `
-                <li class="d-flex align-items-center gap-2 mb-2">
-                  <div class="avatar-circle" style="background:${u.role==='Organizer'?'#0d6efd':'#198754'}; width:30px;height:30px;font-size:.65rem;">${u.avatar}</div>
-                  <div>
-                    <div class="small fw-semibold">${u.name} ${u.id === group.organizerId ? '<span class="badge bg-secondary" style="font-size:.6rem;">Org</span>' : ''}</div>
-                    <div class="text-muted" style="font-size:.72rem;">${u.major}</div>
-                  </div>
-                </li>`).join('')}
-            </ul>
-          </div>
+      ${(isOrganizer || role === 'Admin') ? `
+      <div class="card border-0 shadow-sm">
+        <div class="card-body p-3">
+          <h6 class="fw-bold mb-2">&#9203; Pending Requests</h6>
+          <p class="mb-2 small" id="pending-count-msg">Loading…</p>
+          <a href="organizer-requests.html" class="btn btn-sm btn-warning text-dark w-100">Review Requests</a>
         </div>
+      </div>` : ''}
+    </div>`;
 
-        ${(isOrganizer || role === 'Admin') && pendingCount > 0 ? `
-        <div class="card border-warning border-0 shadow-sm">
-          <div class="card-body p-3">
-            <h6 class="fw-bold mb-2">&#9203; Pending Requests</h6>
-            <p class="mb-2 small">${pendingCount} request${pendingCount !== 1 ? 's' : ''} awaiting review.</p>
-            <a href="organizer-requests.html" class="btn btn-sm btn-warning text-dark w-100">Review Requests</a>
-          </div>
-        </div>` : ''}
-      </div>`;
+  renderComments('comments-list', comments);
 
-    // Render comments
-    renderComments('comments-list', groupId);
+  // Load pending count for organizer sidebar
+  if (isOrganizer || role === 'Admin') {
+    try {
+      const reqs = await apiGet(`/api/join-requests?groupId=${group.id}&status=pending`);
+      const pc = document.getElementById('pending-count-msg');
+      if (pc) pc.textContent = reqs.length > 0
+        ? `${reqs.length} request${reqs.length !== 1 ? 's' : ''} awaiting review.`
+        : 'No pending requests.';
+    } catch (_) {}
+  }
 
-    function joinGroupDetail() {
-      const s = getState();
-      const g = s.groups.find(x => x.id === groupId);
-      if (!g || g.members.includes(userId)) return;
-      g.members.push(userId);
-      saveState(s);
+  window.joinGroupDetail = async function() {
+    try {
+      await apiPost(`/api/groups/${group.id}/join`, {});
       showToast('You have joined the group! Welcome! &#127881;', 'success');
       setTimeout(() => location.reload(), 900);
-    }
+    } catch (err) { showToast(err.message || 'Failed to join.', 'error'); }
+  };
 
-    function leaveGroupDetail() {
-      if (!confirm('Leave this group?')) return;
-      const s = getState();
-      const g = s.groups.find(x => x.id === groupId);
-      g.members = g.members.filter(id => id !== userId);
-      saveState(s);
+  window.leaveGroupDetail = async function() {
+    if (!confirm('Leave this group?')) return;
+    try {
+      await apiDelete(`/api/groups/${group.id}/leave`);
       showToast('You have left the group.', 'info');
       setTimeout(() => window.location.href = 'groups-list.html', 900);
+    } catch (err) { showToast(err.message || 'Failed to leave.', 'error'); }
+  };
+
+  window.submitComment = async function() {
+    const input = document.getElementById('comment-input');
+    if (!input || !input.value.trim()) { showToast('Please enter a message.', 'warning'); return; }
+    const ok = await postComment(group.id, input.value);
+    if (ok) {
+      input.value = '';
+      try { renderComments('comments-list', await apiGet(`/api/groups/${group.id}/comments`)); }
+      catch (_) {}
+      showToast('Message posted! &#10003;', 'success');
     }
-
-    window.submitComment = function() {
-      const input = document.getElementById('comment-input');
-      if (!input) return;
-      if (postComment(groupId, input.value)) {
-        showToast('Message posted! &#10003;', 'success');
-        input.value = '';
-        renderComments('comments-list', groupId);
-      } else {
-        showToast('Please enter a message before posting.', 'warning');
-      }
-    };
-
-    window.joinGroupDetail  = joinGroupDetail;
-    window.leaveGroupDetail = leaveGroupDetail;
-  }
+  };
+})();
 </script>
 </body>
 </html>

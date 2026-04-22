@@ -122,88 +122,106 @@
 <div id="toast-container"></div>
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
-<script src="../assets/js/data.js"></script>
 <script src="../assets/js/app.js"></script>
 <script src="../assets/js/ui.js"></script>
 <script>
-  initApp();
-  guardPage(['Admin']);
+(async () => {
+  await initApp();
+  if (!await guardPage(['Admin'])) return;
 
-  const state = getState();
+  const [stats, recentGroups, recentUsers] = await Promise.all([
+    apiGet('/api/admin/stats').catch(() => null),
+    apiGet('/api/admin/groups').catch(() => []),
+    apiGet('/api/admin/users').catch(() => []),
+  ]);
 
-  // ---- Stats ----
-  const totalUsers    = state.users.length;
-  const activeUsers   = state.users.filter(u => u.status === 'active').length;
-  const bannedUsers   = state.users.filter(u => u.status === 'banned').length;
-  const totalGroups   = state.groups.length;
-  const activeGroups  = state.groups.filter(g => g.status === 'active').length;
-  const removedGroups = state.groups.filter(g => g.status === 'removed').length;
-  const totalReports  = state.groups.reduce((s, g) => s + (g.reports || 0), 0);
-  const pendingReqs   = state.joinRequests.filter(jr => jr.status === 'pending').length;
+  if (stats) {
+    const { totalUsers, activeUsers, bannedUsers, totalGroups, removedGroups, reportedGroups, pendingRequests } = stats;
 
-  document.getElementById('stats-row').innerHTML = `
-    <div class="col-6 col-md-3">
-      <div class="stat-card bg-white shadow-sm">
-        <div class="fw-bold text-primary display-6">${totalUsers}</div>
-        <div class="text-muted small">Total Users</div>
-        <div class="text-muted" style="font-size:.7rem;">${bannedUsers} banned</div>
+    document.getElementById('stats-row').innerHTML = `
+      <div class="col-6 col-md-3">
+        <div class="stat-card bg-white shadow-sm">
+          <div class="fw-bold text-primary display-6">${totalUsers}</div>
+          <div class="text-muted small">Total Users</div>
+          <div class="text-muted" style="font-size:.7rem;">${bannedUsers} banned</div>
+        </div>
       </div>
-    </div>
-    <div class="col-6 col-md-3">
-      <div class="stat-card bg-white shadow-sm">
-        <div class="fw-bold text-wsu display-6">${totalGroups}</div>
-        <div class="text-muted small">Total Groups</div>
-        <div class="text-muted" style="font-size:.7rem;">${removedGroups} removed</div>
+      <div class="col-6 col-md-3">
+        <div class="stat-card bg-white shadow-sm">
+          <div class="fw-bold text-wsu display-6">${totalGroups}</div>
+          <div class="text-muted small">Total Groups</div>
+          <div class="text-muted" style="font-size:.7rem;">${removedGroups} removed</div>
+        </div>
       </div>
-    </div>
-    <div class="col-6 col-md-3">
-      <div class="stat-card bg-white shadow-sm">
-        <div class="fw-bold text-warning display-6">${pendingReqs}</div>
-        <div class="text-muted small">Pending Requests</div>
-        <div class="text-muted" style="font-size:.7rem;">Across all groups</div>
+      <div class="col-6 col-md-3">
+        <div class="stat-card bg-white shadow-sm">
+          <div class="fw-bold text-warning display-6">${pendingRequests}</div>
+          <div class="text-muted small">Pending Requests</div>
+          <div class="text-muted" style="font-size:.7rem;">Across all groups</div>
+        </div>
       </div>
-    </div>
-    <div class="col-6 col-md-3">
-      <div class="stat-card bg-white shadow-sm">
-        <div class="fw-bold text-danger display-6">${totalReports}</div>
-        <div class="text-muted small">Reports Filed</div>
-        <div class="text-muted" style="font-size:.7rem;">Content flags</div>
-      </div>
-    </div>`;
+      <div class="col-6 col-md-3">
+        <div class="stat-card bg-white shadow-sm">
+          <div class="fw-bold text-danger display-6">${reportedGroups}</div>
+          <div class="text-muted small">Reported Groups</div>
+          <div class="text-muted" style="font-size:.7rem;">With reports &gt; 0</div>
+        </div>
+      </div>`;
 
-  // ---- Alerts ----
-  const alerts = [];
-  if (bannedUsers > 0) alerts.push({ level: 'danger',  msg: `${bannedUsers} user${bannedUsers>1?'s are':' is'} currently banned from the platform.` });
-  if (removedGroups > 0) alerts.push({ level: 'warning', msg: `${removedGroups} group${removedGroups>1?'s have':' has'} been removed from public view.` });
-  if (totalReports > 0)  alerts.push({ level: 'warning', msg: `${totalReports} content report${totalReports>1?'s':''} filed — review in Group Moderation.` });
-  if (pendingReqs > 0)   alerts.push({ level: 'info',    msg: `${pendingReqs} join request${pendingReqs>1?'s':''} pending organizer review.` });
-  if (alerts.length === 0) alerts.push({ level: 'success', msg: 'No active alerts. Platform is operating normally.' });
+    const alerts = [];
+    if (bannedUsers   > 0) alerts.push({ level: 'danger',  msg: `${bannedUsers} user${bannedUsers>1?'s are':' is'} currently banned.` });
+    if (removedGroups > 0) alerts.push({ level: 'warning', msg: `${removedGroups} group${removedGroups>1?'s have':' has'} been removed from public view.` });
+    if (reportedGroups > 0) alerts.push({ level: 'warning', msg: `${reportedGroups} group${reportedGroups>1?'s have':' has'} reports — review in Group Moderation.` });
+    if (pendingRequests > 0) alerts.push({ level: 'info',  msg: `${pendingRequests} join request${pendingRequests>1?'s':''} pending organizer review.` });
+    if (!alerts.length) alerts.push({ level: 'success', msg: 'No active alerts. Platform is operating normally.' });
 
-  document.getElementById('alert-count').textContent = alerts.filter(a => a.level !== 'success').length;
-  document.getElementById('alerts-list').innerHTML = alerts.map(a => `
-    <li class="list-group-item list-group-item-${a.level} py-2 small">
-      ${a.level === 'danger' ? '&#128680;' : a.level === 'warning' ? '&#9888;' : a.level === 'success' ? '&#10003;' : 'ℹ️'} ${a.msg}
-    </li>`).join('');
+    document.getElementById('alert-count').textContent = alerts.filter(a => a.level !== 'success').length;
+    document.getElementById('alerts-list').innerHTML = alerts.map(a => `
+      <li class="list-group-item list-group-item-${a.level} py-2 small">
+        ${a.level === 'danger' ? '&#128680;' : a.level === 'warning' ? '&#9888;' : a.level === 'success' ? '&#10003;' : 'ℹ️'} ${a.msg}
+      </li>`).join('');
 
-  // ---- Recent Groups ----
-  document.getElementById('recent-groups').innerHTML = state.groups.slice().reverse().slice(0, 5).map(g => `
+    const userRatio  = totalUsers  ? (activeUsers  / totalUsers  * 100) : 0;
+    const groupRatio = totalGroups ? (stats.activeGroups / totalGroups * 100) : 0;
+    document.getElementById('health-list').innerHTML = `
+      <li class="mb-2">
+        <div class="d-flex justify-content-between small mb-1">
+          <span class="text-muted">Active Users</span><span>${activeUsers}/${totalUsers} (${userRatio.toFixed(0)}%)</span>
+        </div>
+        <div class="progress" style="height:5px;">
+          <div class="progress-bar bg-success" style="width:${userRatio}%;"></div>
+        </div>
+      </li>
+      <li class="mb-2">
+        <div class="d-flex justify-content-between small mb-1">
+          <span class="text-muted">Active Groups</span><span>${stats.activeGroups}/${totalGroups}</span>
+        </div>
+        <div class="progress" style="height:5px;">
+          <div class="progress-bar bg-primary" style="width:${groupRatio}%;"></div>
+        </div>
+      </li>
+      <li class="text-muted small">&#9679; Live data from server</li>`;
+  }
+
+  // Recent Groups table
+  document.getElementById('recent-groups').innerHTML = recentGroups.slice(0, 5).map(g => `
     <tr>
       <td>
         <div class="small fw-semibold">${g.name}</div>
         <div class="text-muted" style="font-size:.72rem;">${g.course}</div>
       </td>
       <td class="small">${g.organizerName}</td>
-      <td class="small text-center">${g.members.length}/${g.maxSize}</td>
+      <td class="small text-center">${g.memberCount}/${g.maxSize}</td>
       <td>${statusBadge(g.status)}</td>
       <td>
         ${g.status === 'active'
-          ? `<button class="btn btn-xs btn-outline-danger" style="font-size:.7rem; padding:.15rem .4rem;" onclick="removeGroup('${g.id}')">Remove</button>`
-          : `<button class="btn btn-xs btn-outline-success" style="font-size:.7rem; padding:.15rem .4rem;" onclick="restoreGroup('${g.id}')">Restore</button>`}
+          ? `<button class="btn btn-xs btn-outline-danger" style="font-size:.7rem; padding:.15rem .4rem;" onclick="removeGroup(${g.id}, this)">Remove</button>`
+          : `<button class="btn btn-xs btn-outline-success" style="font-size:.7rem; padding:.15rem .4rem;" onclick="restoreGroup(${g.id}, this)">Restore</button>`}
       </td>
     </tr>`).join('');
 
-  // ---- Recent Users ----
-  document.getElementById('recent-users').innerHTML = state.users.slice(0, 5).map(u => `
+  // Recent Users table
+  document.getElementById('recent-users').innerHTML = recentUsers.slice(0, 5).map(u => `
     <tr>
       <td>
         <div class="d-flex align-items-center gap-2">
@@ -216,29 +234,9 @@
       </td>
       <td><span class="role-badge role-${u.role}">${u.role}</span></td>
       <td>${statusBadge(u.status)}</td>
-      <td class="text-muted small">${fmtDate(u.joinedAt)}</td>
+      <td class="text-muted small">${fmtDate(u.createdAt)}</td>
     </tr>`).join('');
-
-  // ---- Platform Health ----
-  const ratio = activeUsers / totalUsers * 100;
-  document.getElementById('health-list').innerHTML = `
-    <li class="mb-2">
-      <div class="d-flex justify-content-between small mb-1">
-        <span class="text-muted">Active Users</span><span>${activeUsers}/${totalUsers} (${ratio.toFixed(0)}%)</span>
-      </div>
-      <div class="progress" style="height:5px;">
-        <div class="progress-bar bg-success" style="width:${ratio}%;"></div>
-      </div>
-    </li>
-    <li class="mb-2">
-      <div class="d-flex justify-content-between small mb-1">
-        <span class="text-muted">Active Groups</span><span>${activeGroups}/${totalGroups}</span>
-      </div>
-      <div class="progress" style="height:5px;">
-        <div class="progress-bar bg-primary" style="width:${(activeGroups/totalGroups*100).toFixed(0)}%;"></div>
-      </div>
-    </li>
-    <li class="text-muted small">&#9679; Prototype mode — no real backend</li>`;
+})();
 </script>
 </body>
 </html>

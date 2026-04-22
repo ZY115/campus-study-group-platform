@@ -154,12 +154,12 @@
 <div id="toast-container"></div>
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
-<script src="../assets/js/data.js"></script>
 <script src="../assets/js/app.js"></script>
 <script src="../assets/js/ui.js"></script>
 <script>
-  initApp();
-  guardPage(['Organizer', 'Admin']);
+(async () => {
+  await initApp();
+  if (!await guardPage(['Organizer', 'Admin'])) return;
 
   // Character counters
   document.getElementById('group-name').addEventListener('input', function() {
@@ -191,51 +191,44 @@
     });
   });
 
-  document.getElementById('create-form').addEventListener('submit', function(e) {
+  document.getElementById('create-form').addEventListener('submit', async function(e) {
     e.preventDefault();
     this.classList.add('was-validated');
 
     const format = document.querySelector('input[name="format"]:checked').value;
     const loc    = document.getElementById('location');
-    if (format === 'in-person') { loc.required = true; }
-    else                        { loc.required = false; }
+    loc.required = (format === 'in-person');
 
     if (!this.checkValidity()) return;
 
-    // Build new group object
-    const state     = getState();
-    const user      = getCurrentUser();
-    const newId     = 'g' + Date.now();
-    const tags      = document.getElementById('tags-input').value
+    const tags = document.getElementById('tags-input').value
       .split(',').map(t => t.trim()).filter(Boolean);
 
-    const newGroup = {
-      id:           newId,
-      name:         document.getElementById('group-name').value.trim(),
-      course:       document.getElementById('course-code').value.trim().toUpperCase(),
-      description:  document.getElementById('description').value.trim(),
-      visibility:   document.querySelector('input[name="visibility"]:checked').value,
+    const payload = {
+      name:        document.getElementById('group-name').value.trim(),
+      course:      document.getElementById('course-code').value.trim().toUpperCase(),
+      description: document.getElementById('description').value.trim(),
+      visibility:  document.querySelector('input[name="visibility"]:checked').value,
       format,
-      location:     format === 'in-person' ? document.getElementById('location').value.trim() : '',
-      meetingLink:  format === 'virtual'   ? document.getElementById('meeting-link').value.trim() : '',
-      schedule:     document.getElementById('schedule').value.trim(),
-      organizerId:  getCurrentUserId(),
-      organizerName:user.name,
-      members:      [getCurrentUserId()],
-      maxSize:      parseInt(document.getElementById('max-size').value, 10),
+      location:    format === 'in-person' ? document.getElementById('location').value.trim() : '',
+      meetingLink: format === 'virtual'   ? document.getElementById('meeting-link').value.trim() : '',
+      schedule:    document.getElementById('schedule').value.trim(),
+      maxSize:     parseInt(document.getElementById('max-size').value, 10),
       tags,
-      status:       'active',
-      createdAt:    new Date().toISOString().split('T')[0],
-      reports:      0,
     };
 
-    state.groups.push(newGroup);
-    if (!state.comments[newId]) state.comments[newId] = [];
-    saveState(state);
-
-    showToast(`Group &ldquo;${newGroup.name}&rdquo; created successfully! &#127881;`, 'success');
-    setTimeout(() => window.location.href = `group-detail.html?id=${newId}`, 1100);
+    const btn = this.querySelector('[type="submit"]');
+    btn.disabled = true;
+    try {
+      const group = await apiPost('/api/groups', payload);
+      showToast(`Group &ldquo;${group.name}&rdquo; created successfully! &#127881;`, 'success');
+      setTimeout(() => window.location.href = `group-detail.html?id=${group.id}`, 1100);
+    } catch (err) {
+      showToast(err.message || 'Failed to create group.', 'danger');
+      btn.disabled = false;
+    }
   });
+})();
 </script>
 </body>
 </html>

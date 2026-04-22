@@ -24,8 +24,8 @@
         </div>
 
         <div class="alert alert-info border-0 small mb-4">
-          <strong>Demo Mode:</strong> Registration is simulated. After submitting, you will be redirected to the login page.
-          Use the demo login buttons there to explore the platform.
+          <strong>WSU Email Required:</strong> Use a <code>@wsu.edu</code> address to register.
+          New accounts start with the Participant or Organizer role.
         </div>
 
         <div class="card border-0 shadow-sm">
@@ -117,11 +117,11 @@
 <div id="toast-container"></div>
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
-<script src="../assets/js/data.js"></script>
 <script src="../assets/js/app.js"></script>
 <script src="../assets/js/ui.js"></script>
 <script>
-  initApp();
+(async () => {
+  await initApp();
 
   // Password strength indicator
   document.getElementById('regPassword').addEventListener('input', function() {
@@ -133,7 +133,6 @@
     if (/[A-Z]/.test(val)) strength++;
     if (/[0-9]/.test(val)) strength++;
     if (/[^A-Za-z0-9]/.test(val)) strength++;
-
     const map = [
       { pct: '25%', cls: 'bg-danger',  msg: 'Weak' },
       { pct: '50%', cls: 'bg-warning', msg: 'Fair' },
@@ -142,16 +141,13 @@
     ];
     if (val.length === 0) { bar.style.width = '0%'; hint.textContent = 'Use a mix of letters, numbers, and symbols.'; return; }
     const s = map[Math.min(strength - 1, 3)];
-    bar.style.width = s.pct;
-    bar.className = `progress-bar ${s.cls}`;
+    bar.style.width = s.pct; bar.className = `progress-bar ${s.cls}`;
     hint.textContent = `Password strength: ${s.msg}`;
   });
 
-  document.getElementById('register-form').addEventListener('submit', function(e) {
+  document.getElementById('register-form').addEventListener('submit', async function(e) {
     e.preventDefault();
     this.classList.add('was-validated');
-
-    // Custom confirm-password check
     const pwd     = document.getElementById('regPassword').value;
     const confirm = document.getElementById('confirmPassword');
     if (confirm.value !== pwd) {
@@ -160,17 +156,29 @@
     } else {
       confirm.setCustomValidity('');
     }
-
     if (!this.checkValidity()) return;
 
-    showToast('Account created! Redirecting to login...', 'success');
-    setTimeout(() => window.location.href = 'auth-login.html', 1200);
+    const name  = (document.getElementById('firstName').value.trim() + ' ' + document.getElementById('lastName').value.trim()).trim();
+    const email = document.getElementById('regEmail').value.trim();
+    const major = document.getElementById('major').value.trim();
+    const role  = document.getElementById('roleSelect').value;
+
+    try {
+      await apiPost('/api/auth/register', { name, email, major, role, password: pwd });
+      showToast('Account created! Logging you in…', 'success');
+      // Auto-login after registration
+      const user = await apiPost('/api/auth/login', { email, password: pwd });
+      const dest = { Admin: 'admin-dashboard.html', Organizer: 'dashboard-organizer.html', Participant: 'dashboard-participant.html' }[user.role] || 'index.html';
+      setTimeout(() => window.location.href = dest, 1000);
+    } catch (err) {
+      showToast(err.message || 'Registration failed.', 'error');
+    }
   });
 
-  // Clear custom validity on confirm typing
   document.getElementById('confirmPassword').addEventListener('input', function() {
     this.setCustomValidity('');
   });
+})();
 </script>
 </body>
 </html>

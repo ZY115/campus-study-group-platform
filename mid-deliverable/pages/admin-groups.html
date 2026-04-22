@@ -114,12 +114,15 @@
 <div id="toast-container"></div>
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
-<script src="../assets/js/data.js"></script>
 <script src="../assets/js/app.js"></script>
 <script src="../assets/js/ui.js"></script>
 <script>
-  initApp();
-  guardPage(['Admin']);
+(async () => {
+  await initApp();
+  if (!await guardPage(['Admin'])) return;
+
+  let allGroups = [];
+  try { allGroups = await apiGet('/api/admin/groups'); } catch (_) {}
 
   let activeStatus = 'all';
   let activeFormat = 'all';
@@ -127,33 +130,23 @@
   let searchTerm   = '';
 
   function getFiltered() {
-    const state  = getState();
-    let groups   = state.groups;
+    let groups = allGroups;
     if (activeStatus !== 'all') groups = groups.filter(g => g.status === activeStatus);
     if (activeFormat !== 'all') groups = groups.filter(g => g.format === activeFormat);
     if (activeVis    !== 'all') groups = groups.filter(g => g.visibility === activeVis);
     if (searchTerm) groups = groups.filter(g =>
-      g.name.toLowerCase().includes(searchTerm) ||
-      g.course.toLowerCase().includes(searchTerm) ||
-      g.organizerName.toLowerCase().includes(searchTerm)
+      (g.name         || '').toLowerCase().includes(searchTerm) ||
+      (g.course       || '').toLowerCase().includes(searchTerm) ||
+      (g.organizerName|| '').toLowerCase().includes(searchTerm)
     );
     return groups;
   }
 
-  function render() {
-    const groups = getFiltered();
-    renderAdminGroupRows('groups-tbody', groups);
-    document.getElementById('result-count').textContent =
-      `Showing ${groups.length} group${groups.length !== 1 ? 's' : ''}`;
-  }
-
   function renderStats() {
-    const state   = getState();
-    const total   = state.groups.length;
-    const active  = state.groups.filter(g => g.status === 'active').length;
-    const removed = state.groups.filter(g => g.status === 'removed').length;
-    const reports = state.groups.reduce((s, g) => s + (g.reports || 0), 0);
-
+    const total   = allGroups.length;
+    const active  = allGroups.filter(g => g.status === 'active').length;
+    const removed = allGroups.filter(g => g.status === 'removed').length;
+    const reports = allGroups.reduce((s, g) => s + (g.reports || 0), 0);
     document.getElementById('group-stats').innerHTML = `
       <div class="col-6 col-md-3">
         <div class="stat-card bg-white shadow-sm">
@@ -181,9 +174,14 @@
       </div>`;
   }
 
-  // Filter wiring
+  function render() {
+    const groups = getFiltered();
+    renderAdminGroupRows('groups-tbody', groups);
+    document.getElementById('result-count').textContent =
+      `Showing ${groups.length} group${groups.length !== 1 ? 's' : ''}`;
+  }
+
   ['status-filter', 'format-filter', 'vis-filter'].forEach((filterId, i) => {
-    const propMap = ['activeStatus', 'activeFormat', 'activeVis'];
     document.getElementById(filterId).querySelectorAll('button').forEach(btn => {
       btn.addEventListener('click', function() {
         document.querySelectorAll(`#${filterId} button`).forEach(b => b.classList.remove('active'));
@@ -203,6 +201,7 @@
 
   renderStats();
   render();
+})();
 </script>
 </body>
 </html>

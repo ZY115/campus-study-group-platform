@@ -3,69 +3,60 @@
 /* ================================================================
    APP.JS — Core Application Logic
    Campus Study Group Platform (WSU)
-   Handles: role management, localStorage state, navbar rendering,
-            role-switcher panel, permission guard, toast, utilities.
+   Handles: session-based auth (real API), navbar rendering,
+            permission guard, toast, fetch helpers, utilities.
    ================================================================ */
 
 // ----------------------------------------------------------------
-// 1. Role & Current User
+// 1. Global Session Cache
 // ----------------------------------------------------------------
 
-/** Maps the active demo role to a pre-defined fake user ID. */
-const ROLE_TO_USER_ID = {
-  Admin:       'u1',
-  Organizer:   'u2',
-  Participant: 'u3',
-};
+/** Populated by initApp() from GET /api/auth/me. Null if not logged in. */
+window._sgpUser = null;
 
-function getCurrentRole() {
-  return localStorage.getItem('sgp_role') || 'Participant';
-}
-
-function getCurrentUserId() {
-  return ROLE_TO_USER_ID[getCurrentRole()];
-}
-
-function getCurrentUser() {
-  const state = getState();
-  return state.users.find(u => u.id === getCurrentUserId()) || null;
-}
+function getCurrentUser()  { return window._sgpUser; }
+function getCurrentRole()  { return window._sgpUser?.role  || null; }
+function getCurrentUserId(){ return window._sgpUser?.id    || null; }
 
 // ----------------------------------------------------------------
-// 2. localStorage State
+// 2. Fetch Helpers
 // ----------------------------------------------------------------
 
-const STATE_KEY = 'sgp_state';
-
-function getState() {
-  const stored = localStorage.getItem(STATE_KEY);
-  if (stored) {
-    try { return JSON.parse(stored); }
-    catch (_) { /* fall through to init */ }
-  }
-  return _initState();
+async function apiGet(path) {
+  const res = await fetch(path, { credentials: 'include' });
+  if (!res.ok) throw Object.assign(new Error(res.statusText), { status: res.status });
+  return res.json();
 }
 
-function _initState() {
-  const state = {
-    groups:       JSON.parse(JSON.stringify(INITIAL_GROUPS)),
-    users:        JSON.parse(JSON.stringify(INITIAL_USERS)),
-    joinRequests: JSON.parse(JSON.stringify(INITIAL_JOIN_REQUESTS)),
-    comments:     JSON.parse(JSON.stringify(INITIAL_COMMENTS)),
-    bannedUsers:  ['u6'],
-    removedGroups:['g6'],
-  };
-  localStorage.setItem(STATE_KEY, JSON.stringify(state));
-  return state;
+async function apiPost(path, body) {
+  const res = await fetch(path, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    credentials: 'include',
+    body: JSON.stringify(body),
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw Object.assign(new Error(data.error || res.statusText), { status: res.status });
+  return data;
 }
 
-function saveState(state) {
-  localStorage.setItem(STATE_KEY, JSON.stringify(state));
+async function apiPut(path, body) {
+  const res = await fetch(path, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    credentials: 'include',
+    body: JSON.stringify(body),
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw Object.assign(new Error(data.error || res.statusText), { status: res.status });
+  return data;
 }
 
-function resetState() {
-  localStorage.removeItem(STATE_KEY);
-  return _initState();
+async function apiDelete(path) {
+  const res = await fetch(path, { method: 'DELETE', credentials: 'include' });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw Object.assign(new Error(data.error || res.statusText), { status: res.status });
+  return data;
 }
 
 // ----------------------------------------------------------------
@@ -73,17 +64,35 @@ function resetState() {
 // ----------------------------------------------------------------
 
 /**
- * Call at the top of any restricted page.
+ * Call after initApp() on any restricted page.
  * guardPage(['Organizer', 'Admin']) → redirects to 403 if role not in list.
+ * guardPage() with no args → redirects to login if not authenticated.
  */
-function guardPage(allowedRoles) {
-  const role = getCurrentRole();
-  if (!allowedRoles.includes(role)) {
+async function guardPage(allowedRoles) {
+  const user = window._sgpUser;
+
+  if (!user) {
+    // Not logged in — redirect to login
+    sessionStorage.setItem('sgp_redirect', window.location.pathname + window.location.search);
+    window.location.href = 'auth-login.html';
+    return false;
+  }
+
+  if (user.status === 'banned') {
+    showToast('Your account has been banned. Please contact an administrator.', 'error');
+    setTimeout(() => {
+      window.location.href = 'auth-login.html';
+    }, 2000);
+    return false;
+  }
+
+  if (allowedRoles && allowedRoles.length > 0 && !allowedRoles.includes(user.role)) {
     sessionStorage.setItem('sgp_denied_from', window.location.href);
-    sessionStorage.setItem('sgp_denied_role', role);
+    sessionStorage.setItem('sgp_denied_role', user.role);
     window.location.href = '403.html';
     return false;
   }
+
   return true;
 }
 
@@ -128,11 +137,23 @@ function renderNavbar() {
   const el = document.getElementById('navbar-placeholder');
   if (!el) return;
 
-  const role = getCurrentRole();
-  const user = getCurrentUser();
+  const user = window._sgpUser;
+  const role = user?.role || null;
   const avatarBg = role === 'Admin' ? '#dc3545' : role === 'Organizer' ? '#0d6efd' : '#198754';
-  const initials = user ? user.avatar : '??';
-  const displayName = user ? user.name : 'Guest';
+  const initials = user?.avatar || '??';
+  const displayName = user?.name || 'Guest';
+
+  const userSection = user
+    ? `<div class="d-flex align-items-center gap-2">
+        <div class="avatar-circle" style="background:${avatarBg}; width:36px; height:36px; font-size:.75rem;">${initials}</div>
+        <span class="text-white small d-none d-lg-inline">${displayName}</span>
+        <span class="role-badge role-${role} ms-1">${role}</span>
+        <button class="btn btn-sm btn-outline-light ms-2" onclick="logout()">Logout</button>
+      </div>`
+    : `<div class="d-flex gap-2">
+        <a href="auth-login.html" class="btn btn-sm btn-outline-light">Login</a>
+        <a href="auth-register.html" class="btn btn-sm btn-wsu">Register</a>
+      </div>`;
 
   el.innerHTML = `
     <nav class="navbar navbar-expand-lg navbar-wsu shadow-sm">
@@ -145,14 +166,9 @@ function renderNavbar() {
         </button>
         <div class="collapse navbar-collapse" id="sgpNav">
           <ul class="navbar-nav me-auto mb-2 mb-lg-0">
-            ${_getNavLinks(role)}
+            ${role ? _getNavLinks(role) : `<li class="nav-item"><a class="nav-link" href="groups-list.html">Browse Groups</a></li>`}
           </ul>
-          <div class="d-flex align-items-center gap-2">
-            <div class="avatar-circle" style="background:${avatarBg}; width:36px; height:36px; font-size:.75rem;">${initials}</div>
-            <span class="text-white small d-none d-lg-inline">${displayName}</span>
-            <span class="role-badge role-${role} ms-1">${role}</span>
-            <a href="auth-login.html" class="btn btn-sm btn-outline-light ms-2">Switch User</a>
-          </div>
+          ${userSection}
         </div>
       </div>
     </nav>`;
@@ -165,46 +181,15 @@ function renderNavbar() {
 }
 
 // ----------------------------------------------------------------
-// 5. Role-Switcher Demo Panel
+// 5. Logout
 // ----------------------------------------------------------------
 
-function renderRoleSwitcher() {
-  const role = getCurrentRole();
-
-  const html = `
-    <div id="role-switcher-panel">
-      <div class="panel-header">
-        <span>&#128295; DEMO — Switch Role</span>
-        <button class="btn btn-sm btn-outline-secondary py-0 px-1" onclick="resetAppState()" title="Reset all state to defaults">&#8635;</button>
-      </div>
-      <div class="btn-group w-100" role="group" aria-label="Role switcher">
-        <button type="button" class="btn btn-sm ${role === 'Participant' ? 'btn-success' : 'btn-outline-success'}" onclick="switchRole('Participant')">Participant</button>
-        <button type="button" class="btn btn-sm ${role === 'Organizer'  ? 'btn-primary' : 'btn-outline-primary'}"  onclick="switchRole('Organizer')">Organizer</button>
-        <button type="button" class="btn btn-sm ${role === 'Admin'      ? 'btn-danger'  : 'btn-outline-danger'}"   onclick="switchRole('Admin')">Admin</button>
-      </div>
-      <p class="text-center mb-0 mt-1" style="font-size:.7rem; color:#888;">
-        Active: <strong>${role}</strong> &bull; <em>state persists in localStorage</em>
-      </p>
-    </div>`;
-
-  // Inject or replace the panel
-  let panel = document.getElementById('role-switcher-panel');
-  if (panel) {
-    panel.outerHTML = html;
-  } else {
-    document.body.insertAdjacentHTML('beforeend', html);
-  }
-}
-
-function switchRole(role) {
-  localStorage.setItem('sgp_role', role);
-  window.location.reload();
-}
-
-function resetAppState() {
-  resetState();
-  showToast('State reset to defaults.', 'info');
-  setTimeout(() => window.location.reload(), 900);
+async function logout() {
+  try {
+    await apiPost('/api/auth/logout', {});
+  } catch (_) { /* ignore */ }
+  window._sgpUser = null;
+  window.location.href = 'auth-login.html';
 }
 
 // ----------------------------------------------------------------
@@ -276,9 +261,19 @@ function statusBadge(s) {
 // 8. App Boot
 // ----------------------------------------------------------------
 
-/** Call initApp() on every page load to set up navbar + switcher. */
-function initApp() {
-  if (!localStorage.getItem(STATE_KEY)) _initState();
+/**
+ * Call initApp() on every page load.
+ * Fetches /api/auth/me to populate window._sgpUser, then renders navbar.
+ * Returns the user object (or null if not logged in).
+ */
+async function initApp() {
+  try {
+    window._sgpUser = await apiGet('/api/auth/me');
+  } catch (err) {
+    // 401 = not logged in; anything else is a server error
+    if (err.status !== 401) console.warn('[initApp] session check failed:', err);
+    window._sgpUser = null;
+  }
   renderNavbar();
-  renderRoleSwitcher();
+  return window._sgpUser;
 }

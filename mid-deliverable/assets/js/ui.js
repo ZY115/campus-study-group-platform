@@ -4,21 +4,18 @@
    UI.JS — Reusable Render Functions
    Campus Study Group Platform (WSU)
    Handles: group cards, comment threads, request tables, user/group
-            admin tables, and all in-place state mutations.
+            admin tables, and all API-backed mutations.
    ================================================================ */
 
 // ----------------------------------------------------------------
 // 1. Group Card (Browse / Dashboard)
 // ----------------------------------------------------------------
 
-function renderGroupCard(group, state) {
-  const userId     = getCurrentUserId();
+function renderGroupCard(group) {
+  const isMember   = group.isMember;
+  const isOrganizer= group.isOrganizer;
+  const hasPending = group.hasPendingRequest;
   const role       = getCurrentRole();
-  const isMember   = group.members.includes(userId);
-  const isOrganizer= group.organizerId === userId;
-  const hasPending = state.joinRequests.some(
-    jr => jr.groupId === group.id && jr.userId === userId && jr.status === 'pending'
-  );
   const isRemoved  = group.status === 'removed';
 
   // --- Action button logic ---
@@ -26,22 +23,22 @@ function renderGroupCard(group, state) {
   if (!isRemoved) {
     if (group.visibility === 'public') {
       if (isMember && !isOrganizer) {
-        actionBtn = `<button class="btn btn-sm btn-outline-danger" onclick="leaveGroup('${group.id}')">Leave</button>`;
+        actionBtn = `<button class="btn btn-sm btn-outline-danger" onclick="leaveGroup(${group.id})">Leave</button>`;
       } else if (!isMember) {
-        actionBtn = `<button class="btn btn-sm btn-wsu" onclick="joinGroup('${group.id}')">Join</button>`;
+        actionBtn = `<button class="btn btn-sm btn-wsu" onclick="joinGroup(${group.id})">Join</button>`;
       } else if (isOrganizer) {
         actionBtn = `<span class="badge bg-secondary">Organizer</span>`;
       }
     } else {
       // private group
       if (isMember && !isOrganizer) {
-        actionBtn = `<button class="btn btn-sm btn-outline-danger" onclick="leaveGroup('${group.id}')">Leave</button>`;
+        actionBtn = `<button class="btn btn-sm btn-outline-danger" onclick="leaveGroup(${group.id})">Leave</button>`;
       } else if (isOrganizer) {
         actionBtn = `<span class="badge bg-secondary">Organizer</span>`;
       } else if (hasPending) {
         actionBtn = `<span class="badge badge-pending">&#8987; Pending</span>`;
       } else if (!isMember) {
-        actionBtn = `<button class="btn btn-sm btn-warning text-dark" onclick="requestJoin('${group.id}')">Request to Join</button>`;
+        actionBtn = `<button class="btn btn-sm btn-warning text-dark" onclick="requestJoin(${group.id})">Request to Join</button>`;
       }
     }
   }
@@ -56,9 +53,14 @@ function renderGroupCard(group, state) {
     ? `<div class="card-overlay-removed"><span class="badge badge-removed fs-6">Removed by Admin</span></div>`
     : '';
 
-  const memberBar = group.members.length / group.maxSize;
-  const barWidth  = Math.min(100, Math.round(memberBar * 100));
-  const barColor  = barWidth >= 90 ? 'bg-danger' : barWidth >= 60 ? 'bg-warning' : 'bg-success';
+  const memberCount = group.memberCount ?? 0;
+  const memberBar   = memberCount / group.maxSize;
+  const barWidth    = Math.min(100, Math.round(memberBar * 100));
+  const barColor    = barWidth >= 90 ? 'bg-danger' : barWidth >= 60 ? 'bg-warning' : 'bg-success';
+
+  const tags = Array.isArray(group.tags) && group.tags.length
+    ? group.tags.map(t => `<span class="badge bg-secondary me-1">${t}</span>`).join('')
+    : '';
 
   return `
     <div class="col-md-6 col-lg-4 mb-4">
@@ -78,11 +80,12 @@ function renderGroupCard(group, state) {
           </p>
           <ul class="list-unstyled text-muted small mb-2">
             <li>&#128197; ${group.schedule}</li>
-            <li>${group.format === 'virtual' ? '&#128187; Virtual (Zoom / Teams)' : '&#128205; ' + group.location}</li>
+            <li>${group.format === 'virtual' ? '&#128187; Virtual' : '&#128205; ' + (group.location || '')}</li>
           </ul>
+          ${tags ? `<div class="mb-2">${tags}</div>` : ''}
           <div class="mb-2">
             <div class="d-flex justify-content-between small text-muted mb-1">
-              <span>Members</span><span>${group.members.length} / ${group.maxSize}</span>
+              <span>Members</span><span>${memberCount} / ${group.maxSize}</span>
             </div>
             <div class="progress" style="height:5px;">
               <div class="progress-bar ${barColor}" style="width:${barWidth}%;"></div>
@@ -94,7 +97,7 @@ function renderGroupCard(group, state) {
           </div>
         </div>
         <div class="card-footer bg-transparent text-muted small py-2">
-          Organized by ${group.organizerName}
+          Organized by ${group.organizerName || 'Unknown'}
         </div>
       </div>
     </div>`;
@@ -105,113 +108,89 @@ function renderGroupCard(group, state) {
 // ----------------------------------------------------------------
 
 function renderGroupsGrid(containerId, groups) {
-  const state = getState();
-  const el    = document.getElementById(containerId);
+  const el = document.getElementById(containerId);
   if (!el) return;
   if (groups.length === 0) {
     el.innerHTML = `<div class="col-12"><div class="alert alert-info border-0">No study groups match your filters. Try broadening your search!</div></div>`;
     return;
   }
-  el.innerHTML = groups.map(g => renderGroupCard(g, state)).join('');
+  el.innerHTML = groups.map(g => renderGroupCard(g)).join('');
 }
 
 // ----------------------------------------------------------------
-// 3. Join / Leave / Request (mutate state from card buttons)
+// 3. Join / Leave / Request
 // ----------------------------------------------------------------
 
-function joinGroup(groupId) {
-  const state  = getState();
-  const group  = state.groups.find(g => g.id === groupId);
-  const userId = getCurrentUserId();
-  if (!group || group.members.includes(userId)) return;
-  group.members.push(userId);
-  saveState(state);
-  showToast(`Joined &ldquo;${group.name}&rdquo; successfully! &#127881;`, 'success');
-  setTimeout(() => location.reload(), 850);
+async function joinGroup(groupId) {
+  try {
+    await apiPost(`/api/groups/${groupId}/join`, {});
+    showToast('Joined group successfully! &#127881;', 'success');
+    setTimeout(() => location.reload(), 850);
+  } catch (err) {
+    showToast(err.message || 'Failed to join group.', 'error');
+  }
 }
 
-function leaveGroup(groupId) {
+async function leaveGroup(groupId) {
   if (!confirm('Are you sure you want to leave this group?')) return;
-  const state  = getState();
-  const group  = state.groups.find(g => g.id === groupId);
-  const userId = getCurrentUserId();
-  if (!group) return;
-  group.members = group.members.filter(id => id !== userId);
-  saveState(state);
-  showToast(`You have left &ldquo;${group.name}&rdquo;.`, 'info');
-  setTimeout(() => location.reload(), 850);
+  try {
+    await apiDelete(`/api/groups/${groupId}/leave`);
+    showToast('You have left the group.', 'info');
+    setTimeout(() => location.reload(), 850);
+  } catch (err) {
+    showToast(err.message || 'Failed to leave group.', 'error');
+  }
 }
 
-function requestJoin(groupId) {
-  const state  = getState();
-  const group  = state.groups.find(g => g.id === groupId);
-  const userId = getCurrentUserId();
-  const user   = getCurrentUser();
-  if (!group || !user) return;
-
-  const exists = state.joinRequests.find(
-    jr => jr.groupId === groupId && jr.userId === userId && jr.status === 'pending'
-  );
-  if (exists) { showToast('You already have a pending request for this group.', 'warning'); return; }
-
-  state.joinRequests.push({
-    id:          'jr' + Date.now(),
-    groupId,
-    groupName:   group.name,
-    userId,
-    userName:    user.name,
-    userEmail:   user.email,
-    status:      'pending',
-    requestedAt: new Date().toISOString().split('T')[0],
-    message:     'Request submitted via Browse Groups page.',
-  });
-  saveState(state);
-  showToast(`Join request sent to &ldquo;${group.name}&rdquo;!`, 'success');
-  setTimeout(() => location.reload(), 850);
+async function requestJoin(groupId) {
+  const message = prompt('Add a note to your join request (optional):') ?? '';
+  try {
+    await apiPost(`/api/groups/${groupId}/join`, { message });
+    showToast('Join request sent! &#10003;', 'success');
+    setTimeout(() => location.reload(), 850);
+  } catch (err) {
+    showToast(err.message || 'Failed to send request.', 'error');
+  }
 }
 
 // ----------------------------------------------------------------
 // 4. Discussion Comments
 // ----------------------------------------------------------------
 
-function renderComments(containerId, groupId) {
-  const state    = getState();
-  const comments = (state.comments[groupId] || []);
-  const el       = document.getElementById(containerId);
+function renderComments(containerId, comments) {
+  const el = document.getElementById(containerId);
   if (!el) return;
 
-  if (comments.length === 0) {
+  if (!comments || comments.length === 0) {
     el.innerHTML = '<p class="text-muted small fst-italic">No posts yet. Be the first to say something!</p>';
     return;
   }
 
-  el.innerHTML = comments.map(c => `
+  el.innerHTML = comments.map(c => {
+    const initials = (c.userName || 'U').split(' ').map(w => w[0]).join('').toUpperCase().slice(0, 2);
+    return `
     <div class="comment-item">
       <div class="d-flex align-items-center gap-2 mb-1">
         <div class="avatar-circle" style="width:30px;height:30px;font-size:.65rem;background:#6c757d;">
-          ${c.userName.split(' ').map(w => w[0]).join('')}
+          ${initials}
         </div>
-        <strong class="small">${c.userName}</strong>
+        <strong class="small">${c.userName || 'Unknown'}</strong>
         <span class="text-muted" style="font-size:.75rem;">${fmtDateTime(c.createdAt)}</span>
       </div>
       <p class="mb-0 small">${c.text}</p>
-    </div>`).join('');
+    </div>`;
+  }).join('');
 }
 
-function postComment(groupId, text) {
+async function postComment(groupId, text) {
   if (!text.trim()) return false;
-  const state = getState();
-  const user  = getCurrentUser();
-  if (!state.comments[groupId]) state.comments[groupId] = [];
-  state.comments[groupId].push({
-    id:        'c' + Date.now(),
-    userId:    getCurrentUserId(),
-    userName:  user.name,
-    text:      text.trim(),
-    createdAt: new Date().toISOString(),
-  });
-  saveState(state);
-  return true;
+  try {
+    await apiPost(`/api/groups/${groupId}/comments`, { text: text.trim() });
+    return true;
+  } catch (err) {
+    showToast(err.message || 'Failed to post comment.', 'error');
+    return false;
+  }
 }
 
 // ----------------------------------------------------------------
@@ -230,41 +209,39 @@ function renderRequestRows(containerId, requests) {
   el.innerHTML = requests.map(req => `
     <tr id="req-row-${req.id}">
       <td>
-        <div class="fw-semibold">${req.userName}</div>
-        <div class="text-muted small">${req.userEmail}</div>
+        <div class="fw-semibold">${req.userName || 'Unknown'}</div>
+        <div class="text-muted small">${req.userEmail || ''}</div>
       </td>
-      <td class="small">${req.groupName}</td>
-      <td class="small text-muted" style="max-width:260px;">${req.message}</td>
-      <td>${statusBadge(req.status)}<br><small class="text-muted">${req.requestedAt}</small></td>
+      <td class="small">${req.groupName || ''}</td>
+      <td class="small text-muted" style="max-width:260px;">${req.message || ''}</td>
+      <td>${statusBadge(req.status)}<br><small class="text-muted">${fmtDate(req.requestedAt || req.createdAt)}</small></td>
       <td>
         ${req.status === 'pending'
-          ? `<button class="btn btn-sm btn-success me-1 mb-1" onclick="approveRequest('${req.id}')">Approve</button>
-             <button class="btn btn-sm btn-danger mb-1"       onclick="rejectRequest('${req.id}')">Reject</button>`
+          ? `<button class="btn btn-sm btn-success me-1 mb-1" onclick="approveRequest(${req.id})">Approve</button>
+             <button class="btn btn-sm btn-danger mb-1"       onclick="rejectRequest(${req.id})">Reject</button>`
           : '<span class="text-muted small">—</span>'}
       </td>
     </tr>`).join('');
 }
 
-function approveRequest(reqId) {
-  const state = getState();
-  const req   = state.joinRequests.find(r => r.id === reqId);
-  if (!req) return;
-  req.status = 'approved';
-  const group = state.groups.find(g => g.id === req.groupId);
-  if (group && !group.members.includes(req.userId)) group.members.push(req.userId);
-  saveState(state);
-  showToast(`Approved ${req.userName}'s request. &#10003;`, 'success');
-  setTimeout(() => location.reload(), 850);
+async function approveRequest(reqId) {
+  try {
+    await apiPut(`/api/join-requests/${reqId}`, { status: 'approved' });
+    showToast('Request approved. &#10003;', 'success');
+    setTimeout(() => location.reload(), 850);
+  } catch (err) {
+    showToast(err.message || 'Failed to approve request.', 'error');
+  }
 }
 
-function rejectRequest(reqId) {
-  const state = getState();
-  const req   = state.joinRequests.find(r => r.id === reqId);
-  if (!req) return;
-  req.status = 'rejected';
-  saveState(state);
-  showToast(`Rejected ${req.userName}'s request.`, 'info');
-  setTimeout(() => location.reload(), 850);
+async function rejectRequest(reqId) {
+  try {
+    await apiPut(`/api/join-requests/${reqId}`, { status: 'rejected' });
+    showToast('Request rejected.', 'info');
+    setTimeout(() => location.reload(), 850);
+  } catch (err) {
+    showToast(err.message || 'Failed to reject request.', 'error');
+  }
 }
 
 // ----------------------------------------------------------------
@@ -293,41 +270,39 @@ function renderUserRows(containerId, users) {
           </div>
         </div>
       </td>
-      <td class="small">${u.major}</td>
+      <td class="small">${u.major || ''}</td>
       <td><span class="role-badge role-${u.role}">${u.role}</span></td>
       <td>${statusBadge(u.status)}</td>
-      <td class="text-muted small">${fmtDate(u.joinedAt)}</td>
+      <td class="text-muted small">${fmtDate(u.createdAt)}</td>
       <td>
-        ${u.id === 'u1'
+        ${u.role === 'Admin'
           ? '<span class="text-muted small fst-italic">Protected</span>'
           : u.status === 'banned'
-            ? `<button class="btn btn-sm btn-outline-success" onclick="unbanUser('${u.id}')">Unban</button>`
-            : `<button class="btn btn-sm btn-outline-danger"  onclick="banUser('${u.id}')">Ban</button>`}
+            ? `<button class="btn btn-sm btn-outline-success" onclick="unbanUser(${u.id})">Unban</button>`
+            : `<button class="btn btn-sm btn-outline-danger"  onclick="banUser(${u.id})">Ban</button>`}
       </td>
     </tr>`).join('');
 }
 
-function banUser(userId) {
+async function banUser(userId) {
   if (!confirm('Ban this user? They will lose platform access.')) return;
-  const state = getState();
-  const user  = state.users.find(u => u.id === userId);
-  if (!user) return;
-  user.status = 'banned';
-  if (!state.bannedUsers.includes(userId)) state.bannedUsers.push(userId);
-  saveState(state);
-  showToast(`${user.name} has been banned. &#9888;`, 'warning');
-  setTimeout(() => location.reload(), 850);
+  try {
+    await apiPut(`/api/admin/users/${userId}/status`, { action: 'ban' });
+    showToast('User has been banned. &#9888;', 'warning');
+    setTimeout(() => location.reload(), 850);
+  } catch (err) {
+    showToast(err.message || 'Failed to ban user.', 'error');
+  }
 }
 
-function unbanUser(userId) {
-  const state = getState();
-  const user  = state.users.find(u => u.id === userId);
-  if (!user) return;
-  user.status = 'active';
-  state.bannedUsers = state.bannedUsers.filter(id => id !== userId);
-  saveState(state);
-  showToast(`${user.name} has been unbanned. &#10003;`, 'success');
-  setTimeout(() => location.reload(), 850);
+async function unbanUser(userId) {
+  try {
+    await apiPut(`/api/admin/users/${userId}/status`, { action: 'unban' });
+    showToast('User has been unbanned. &#10003;', 'success');
+    setTimeout(() => location.reload(), 850);
+  } catch (err) {
+    showToast(err.message || 'Failed to unban user.', 'error');
+  }
 }
 
 // ----------------------------------------------------------------
@@ -349,38 +324,36 @@ function renderAdminGroupRows(containerId, groups) {
         <div class="fw-semibold">${g.name}</div>
         <div class="text-muted small">${g.course}</div>
       </td>
-      <td class="small">${g.organizerName}</td>
+      <td class="small">${g.organizerName || 'Unknown'}</td>
       <td>${visibilityBadge(g.visibility)}<br>${formatBadge(g.format)}</td>
-      <td class="text-center small">${g.members.length} / ${g.maxSize}</td>
+      <td class="text-center small">${g.memberCount ?? 0} / ${g.maxSize}</td>
       <td>${statusBadge(g.status)}${g.reports > 0 ? ` <span class="badge bg-danger ms-1">${g.reports} reports</span>` : ''}</td>
       <td>
         ${g.status === 'active'
-          ? `<button class="btn btn-sm btn-outline-danger"   onclick="removeGroup('${g.id}')">Remove</button>`
-          : `<button class="btn btn-sm btn-outline-success"  onclick="restoreGroup('${g.id}')">Restore</button>`}
+          ? `<button class="btn btn-sm btn-outline-danger"  onclick="removeGroup(${g.id})">Remove</button>`
+          : `<button class="btn btn-sm btn-outline-success" onclick="restoreGroup(${g.id})">Restore</button>`}
         <a href="group-detail.html?id=${g.id}" class="btn btn-sm btn-outline-secondary ms-1">View</a>
       </td>
     </tr>`).join('');
 }
 
-function removeGroup(groupId) {
+async function removeGroup(groupId) {
   if (!confirm('Remove this group? Members will no longer be able to access it. This can be reversed.')) return;
-  const state = getState();
-  const group = state.groups.find(g => g.id === groupId);
-  if (!group) return;
-  group.status = 'removed';
-  if (!state.removedGroups.includes(groupId)) state.removedGroups.push(groupId);
-  saveState(state);
-  showToast(`&ldquo;${group.name}&rdquo; removed. &#10007;`, 'warning');
-  setTimeout(() => location.reload(), 850);
+  try {
+    await apiPut(`/api/admin/groups/${groupId}/status`, { status: 'removed' });
+    showToast('Group removed. &#10007;', 'warning');
+    setTimeout(() => location.reload(), 850);
+  } catch (err) {
+    showToast(err.message || 'Failed to remove group.', 'error');
+  }
 }
 
-function restoreGroup(groupId) {
-  const state = getState();
-  const group = state.groups.find(g => g.id === groupId);
-  if (!group) return;
-  group.status = 'active';
-  state.removedGroups = state.removedGroups.filter(id => id !== groupId);
-  saveState(state);
-  showToast(`&ldquo;${group.name}&rdquo; restored. &#10003;`, 'success');
-  setTimeout(() => location.reload(), 850);
+async function restoreGroup(groupId) {
+  try {
+    await apiPut(`/api/admin/groups/${groupId}/status`, { status: 'active' });
+    showToast('Group restored. &#10003;', 'success');
+    setTimeout(() => location.reload(), 850);
+  } catch (err) {
+    showToast(err.message || 'Failed to restore group.', 'error');
+  }
 }

@@ -85,38 +85,27 @@
 <div id="toast-container"></div>
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
-<script src="../assets/js/data.js"></script>
 <script src="../assets/js/app.js"></script>
 <script src="../assets/js/ui.js"></script>
 <script>
-  initApp();
+(async () => {
+  await initApp();
+  if (!await guardPage()) return;  // must be logged in
 
-  const state  = getState();
-  const userId = getCurrentUserId();
-  const user   = getCurrentUser();
-  const role   = getCurrentRole();
+  const user = window._sgpUser;
+  const role = user?.role || 'Participant';
 
-  // Welcome
-  document.getElementById('welcome-name').textContent     = `Welcome back, ${user ? user.name.split(' ')[0] : 'Student'}!`;
-  document.getElementById('welcome-subtitle').textContent =
-    `You're signed in as ${role}. Here's your study group activity.`;
+  document.getElementById('welcome-name').textContent     = `Welcome back, ${user?.name?.split(' ')[0] || 'Student'}!`;
+  document.getElementById('welcome-subtitle').textContent = `You're signed in as ${role}. Here's your study group activity.`;
 
-  // Joined groups
-  const joinedGroups = state.groups.filter(
-    g => g.members.includes(userId) && g.status === 'active'
-  );
+  let groups = [];
+  try { groups = await apiGet('/api/groups'); } catch (_) {}
 
-  // Pending requests
-  const pendingRequests = state.joinRequests.filter(
-    jr => jr.userId === userId && jr.status === 'pending'
-  );
+  const joinedGroups   = groups.filter(g => g.isMember && g.status === 'active');
+  const pendingGroups  = groups.filter(g => g.hasPendingRequest);
+  const virtualJoined  = joinedGroups.filter(g => g.format === 'virtual').length;
+  const courses        = new Set(joinedGroups.map(g => g.course)).size;
 
-  // Approved requests
-  const approvedCount = state.joinRequests.filter(
-    jr => jr.userId === userId && jr.status === 'approved'
-  ).length;
-
-  // Stats
   document.getElementById('stats-row').innerHTML = `
     <div class="col-6 col-md-3">
       <div class="stat-card bg-white shadow-sm">
@@ -126,24 +115,23 @@
     </div>
     <div class="col-6 col-md-3">
       <div class="stat-card bg-white shadow-sm">
-        <div class="fw-bold text-primary display-6">${pendingRequests.length}</div>
+        <div class="fw-bold text-primary display-6">${pendingGroups.length}</div>
         <div class="text-muted small">Pending Requests</div>
       </div>
     </div>
     <div class="col-6 col-md-3">
       <div class="stat-card bg-white shadow-sm">
-        <div class="fw-bold text-success display-6">${approvedCount}</div>
-        <div class="text-muted small">Requests Approved</div>
+        <div class="fw-bold text-success display-6">${courses}</div>
+        <div class="text-muted small">Courses</div>
       </div>
     </div>
     <div class="col-6 col-md-3">
       <div class="stat-card bg-white shadow-sm">
-        <div class="fw-bold text-secondary display-6">${joinedGroups.filter(g => g.format === 'virtual').length}</div>
+        <div class="fw-bold text-secondary display-6">${virtualJoined}</div>
         <div class="text-muted small">Virtual Groups</div>
       </div>
     </div>`;
 
-  // Render joined groups grid
   if (joinedGroups.length === 0) {
     document.getElementById('joined-groups-grid').innerHTML = `
       <div class="col-12">
@@ -158,23 +146,23 @@
     renderGroupsGrid('joined-groups-grid', joinedGroups);
   }
 
-  // Render pending requests
   const pendingEl = document.getElementById('pending-list');
-  if (pendingRequests.length === 0) {
+  if (pendingGroups.length === 0) {
     pendingEl.innerHTML = `<li class="list-group-item text-muted small fst-italic py-3 text-center">No pending requests.</li>`;
   } else {
-    pendingEl.innerHTML = pendingRequests.map(jr => `
+    pendingEl.innerHTML = pendingGroups.map(g => `
       <li class="list-group-item py-3">
         <div class="d-flex justify-content-between align-items-start">
           <div>
-            <div class="small fw-semibold">${jr.groupName}</div>
-            <div class="text-muted" style="font-size:.75rem;">Submitted ${jr.requestedAt}</div>
+            <div class="small fw-semibold">${g.name}</div>
+            <div class="text-muted" style="font-size:.75rem;">${g.course}</div>
           </div>
           <span class="badge badge-pending">&#8987; Pending</span>
         </div>
-        <a href="group-detail-private.html?id=${jr.groupId}" class="btn btn-sm btn-outline-secondary mt-2">View Group</a>
+        <a href="group-detail-private.html?id=${g.id}" class="btn btn-sm btn-outline-secondary mt-2">View Group</a>
       </li>`).join('');
   }
+})();
 </script>
 </body>
 </html>
