@@ -61,7 +61,7 @@ app.use((err, _req, res, _next) => {
 // ─── Boot ───────────────────────────────────────────────────────────────────
 const PORT = process.env.PORT || 3000;
 
-db.sync({ alter: true })
+db.sync()
   .then(() => {
     app.listen(PORT, () => {
       console.log(`\n  StudyGroup WSU  →  http://localhost:${PORT}`);

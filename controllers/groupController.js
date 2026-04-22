@@ -113,7 +113,7 @@ async function getGroup(req, res) {
 
     const group = await Group.findByPk(req.params.id, {
       include: [
-        { model: User, as: 'organizer',    attributes: ['id', 'name', 'major', 'avatar'] },
+        { model: User, as: 'organizer',    attributes: ['id', 'name', 'major'] },
         { model: User, as: 'groupMembers', attributes: ['id', 'name', 'major', 'role'],
           through: { attributes: [] } },
       ],
